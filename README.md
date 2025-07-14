@@ -22,8 +22,10 @@ POSTGRES_PASSWORD=airflow
 POSTGRES_DB=airflow
 
 ## 2. Run docker compose
+```
 
 From the root folder, simply run:
+
 
 ```sh
 docker compose up --build -d
