@@ -1,0 +1,7 @@
+version: '3'
+services:
+  ocr-tika-app:
+    build:
+      context: .
+    ports:
+      - "9998:9998"  # Nginx listens on port 5555

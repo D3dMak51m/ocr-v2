@@ -1,0 +1,14 @@
+RABBITMQ_USER=admin
+RABBITMQ_PASSWORD=admin_ocr_123SjC7s
+RABBITMQ_HOST=rabbitmq
+
+# Celery Configuration
+CELERY_BROKER_URL=amqp://admin:admin_ocr_123SjC7s@rabbitmq:5672//
+
+# API Token
+API_TOKEN=asdjkhj8hsd!s8adhASas
+
+# Flower Configuration
+FLOWER_USER=admin
+FLOWER_PASSWORD=admin_ocr_123SjC7s
+CELERY_QUEUE=small_files
