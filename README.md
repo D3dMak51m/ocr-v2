@@ -12,29 +12,21 @@ create .env file in the root folder and add (change password and tokens accordin
 ```sh
 # .env
 
-# RabbitMQ Configuration
-RABBITMQ_USER=admin
-RABBITMQ_PASSWORD=admin_ocr_123SjC7s
-RABBITMQ_HOST=rabbitmq
-
-# Celery Configuration
-CELERY_BROKER_URL=amqp://admin:admin_ocr_123SjC7s@rabbitmq:5672//
-
 # API Token
 API_TOKEN=asdjkhj8hsd!s8adhASas
 
-# Flower Configuration
-FLOWER_USER=admin
-FLOWER_PASSWORD=admin_ocr_123SjC7s
 
-```
+# Postgres info for airflow
+POSTGRES_USER=airflow
+POSTGRES_PASSWORD=airflow
+POSTGRES_DB=airflow
 
 ## 2. Run docker compose
 
 From the root folder, simply run:
 
 ```sh
-docker compose up -d
+docker compose up --build -d
 ```
 
 # Example Requests:
@@ -60,65 +52,35 @@ curl --location 'http://0.0.0.0:8282/ocr/queue_inference' \
 --header 'Content-Type: application/json' \
 --header 'Authorization: Bearer asdjkhj8hsd!s8adhASas' \
 --data '{
-  "url": "https://cf2.ppt-online.org/files2/slide/s/sEJXuRQk0xK4tH3ilIL1AMTB87dOmwcybo6aFSfpN/slide-0.jpg"
+   "url": "https://yourpositiveoasis.com/wp-content/gallery/25-inspiring-and-positive-quotes/IMG_7101.PNG",
+   "local_path": "",
+   "request_id": "string_5",
+   "file_size_mb": 3,
+   "callback_url": "https://webhook-test.com/ba547e1d07c3133881c8a516ca338cb1"
 }'
 
 ```
 
 You will get a received response, and to check the result listen on the rabbitMQ. An example of listening to rabbitMQ is in the `client_sample` folder.
 
-## Instructions to run the sample that listens on the RabbitMQ
 
-### Prerequisites
-Make sure you have the following installed:
-1. **Python**: Run `python3 --version` to check if Python is installed. If not, install it using:
-   ```bash
-   sudo apt update
-   sudo apt install python3
-   ```
-2. **pip**: Run `pip3 --version` to check if pip is installed. If not, install it using:
-   ```bash
-   sudo apt install python3-pip
-   ```
-3. **venv**: Ensure the `venv` package is installed:
-   ```bash
-   sudo apt install python3-venv
-   ```
+### 🌐 Accessing Airflow Web UI
 
-### Instructions
+After starting the services with Docker Compose, you can access the Airflow web interface at:
 
-1. **Navigate to your project directory**:
-   ```bash
-   cd client_sample
-   ```
+- 📍 **URL:** [http://localhost:8080](http://localhost:8080)
 
-2. **Create a virtual environment**:
-   ```bash
-   python3 -m venv venv
-   ```
+#### 🛠 Port Mapping
 
-3. **Activate the virtual environment**:
-   ```bash
-   source venv/bin/activate
-   ```
+The Airflow webserver is exposed on:
 
-4. **Install the required packages from `requirements.txt`**:
-   ```bash
-   pip install -r requirements.txt
-   ```
+password, login admin admin
 
-5. **Run your Python script** (do not forget to check ip / port and login credentials of the RabbitMQ):
-   ```bash
-   python3 consumer.py
-   ```
+```bash
+ports:
+  - "8080:8080"  # host:container
 
-6. **Deactivate the virtual environment after you are done**:
-   ```bash
-   deactivate
-   ```
-
-
-
+ 
 ## Supported extensions:
 
 - "jpeg/jpg",
