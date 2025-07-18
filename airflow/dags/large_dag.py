@@ -80,70 +80,9 @@ def call_fastapi_inference(**context):
         return "Failed to call FastAPI inference"
 
 
-# def callback_to_url(**context):
-#     """Send all results to callback URL"""
-#     # Get callback URL from environment or use default
-#     callback_url = os.getenv('CALLBACK_URL', 'http://httpbin.org/post')
-
-#     dag_run_conf = context['dag_run'].conf or {}
-#     if 'callback_url' in dag_run_conf:
-#         callback_url = dag_run_conf['callback_url']
-
-#     # Get all data from previous task
-#     inference_request = context['task_instance'].xcom_pull(key='inference_request')
-#     inference_result = context['task_instance'].xcom_pull(key='inference_result')
-#     inference_error = context['task_instance'].xcom_pull(key='inference_error')
-
-#     # Get original trigger parameters
-#     dag_run_conf = context['dag_run'].conf or {}
-
-#     # Prepare complete callback data with everything
-#     callback_data = {
-#         # Airflow execution metadata
-#         'execution_id': context['ts_nodash'],
-#         'dag_run_id': context['dag_run'].run_id,
-#         'task_id': context['task'].task_id,
-#         'execution_date': context['ts'],
-#         'dag_id': context['dag'].dag_id,
-
-#         # Original trigger parameters
-#         'trigger_parameters': dag_run_conf,
-
-#         # Request sent to FastAPI
-#         'inference_request': inference_request,
-
-#         # Response from FastAPI
-#         'inference_result': inference_result,
-#         'inference_error': inference_error,
-
-#         # Overall status
-#         'status': 'success' if inference_result else 'error',
-#         'timestamp': datetime.now().isoformat()
-#     }
-
-#     try:
-#         response = requests.post(
-#             callback_url,
-#             headers={'Content-Type': 'application/json'},
-#             json=callback_data,
-#             timeout=30
-#         )
-
-#         if response.status_code in [200, 201, 202]:
-#             context['task_instance'].xcom_push(key='callback_success', value=True)
-#             context['task_instance'].xcom_push(key='callback_response', value=response.json())
-#             return f"Callback successful: {response.status_code}"
-#         else:
-#             raise Exception(f"Callback failed with status {response.status_code}: {response.text}")
-
-#     except Exception as e:
-#         context['task_instance'].xcom_push(key='callback_error', value=str(e))
-#         raise e
-
-
 # Remove the 'with' statement and assign DAG directly
 dag = DAG(
-    "airflow_dag",
+    "airflow_large",
     default_args=default_args,
     schedule_interval=None,
     catchup=False,
@@ -156,14 +95,3 @@ inference_task = PythonOperator(
     python_callable=call_fastapi_inference,
     dag=dag,
 )
-
-# # Task 2: Send complete results to callback URL
-# callback_task = PythonOperator(
-#     task_id='callback_to_url',
-#     python_callable=callback_to_url,
-#     dag=dag,
-# )
-
-
-# # Define task dependencies
-# inference_task >> callback_task

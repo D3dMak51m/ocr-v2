@@ -13,11 +13,6 @@ root_path = "/ocr"
 
 webapp = FastAPI()
 
-# webapp = FastAPI(
-#     root_path=root_path,
-#     docs_url='/docs',
-#     redoc_url='/redoc',
-#     openapi_url='/openapi.json')
 
 origins = ["*"]
 
@@ -83,51 +78,24 @@ def text_extraction(
         return {"status": error_msg}
 
 
-# @webapp.post("/queue_inference")
-# def queue_text_extraction(
-#     request: TextractRequest,
-#     token: HTTPAuthorizationCredentials = Depends(verify_token),
-# ) -> dict:
-#     """
-#     ## Supported extensions:
-
-#     - "jpeg/jpg",
-#     - "jpeg",
-#     - "jpg",
-#     - "png",
-#     - "gif",
-#     - "bmp",
-#     - "pdf"
-#     - "doc",
-#     - "docx",
-#     - "ppt",
-#     - "pptx"
-#     """
-
-#     if request.file_size_mb <= 50:
-#         process_ocr_task_small.delay(
-#             request.url, request.local_path, request.request_id, request.file_size_mb
-#         )
-#     else:
-#         process_ocr_task_large.delay(
-#             request.url, request.local_path, request.request_id, request.file_size_mb
-#         )
-#     return {"request_id": request.request_id, "status": "received"}
-
-
 @webapp.post("/airflow_task")
 def create_airflow_task(
     request: AirflowTask,
     token: HTTPAuthorizationCredentials = Depends(verify_token),
 ) -> dict:
 
-    AIRFLOW_BASE_URL = os.getenv("AIRFLOW_BASE_URL", "http://localhost:8080")
-    print(AIRFLOW_BASE_URL)
+    AIRFLOW_BASE_URL = os.getenv("AIRFLOW_BASE_URL", "http://airflow-webserver:8080")
+    # print(AIRFLOW_BASE_URL)
     airflow_url = f"{AIRFLOW_BASE_URL}/api/v1/dags/airflow_dag/dagRuns"
+    airflow_url_large = f"{AIRFLOW_BASE_URL}/api/v1/airflow_large/dagRuns"
+
+    if request.file_size_mb <= 5:
+        preffered_dag_url = airflow_url
+    else:
+        preffered_dag_url = airflow_url_large
+
     response = requests.post(
-        airflow_url,
-        json={"conf": request.dict()}, 
-        auth=("admin", "admin")
+        preffered_dag_url, json={"conf": request.dict()}, auth=("admin", "admin")
     )
     print(f"Response from Airflow: {response.status_code}, {response.text}")
 

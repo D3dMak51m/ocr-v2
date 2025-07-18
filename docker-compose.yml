@@ -10,7 +10,7 @@ services:
     restart: unless-stopped
     environment:
       - API_TOKEN=${API_TOKEN}
-      - AIRFLOW_BASE_URL=http://airflow-webserver:8080
+      - AIRFLOW_BASE_URL=${AIRFLOW_BASE_URL}
     volumes:
       - ./app:/app
       - /var/lib/datagaze/.data/data:/data
@@ -69,7 +69,7 @@ services:
       - AIRFLOW__CORE__EXECUTOR=LocalExecutor
       - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       - AIRFLOW__API__AUTH_BACKENDS=airflow.api.auth.backend.basic_auth
-      - FAST_API_BASE_URL=http://backend:8282
+      - FAST_API_BASE_URL=${FAST_API_BASE_URL}
     networks:
       - app-network
     volumes:
@@ -77,10 +77,10 @@ services:
     entrypoint: >
       /bin/bash -c "
         airflow db migrate &&
-        if ! airflow users list | grep -q admin; then
-          airflow users create --username admin --password admin --firstname Admin --lastname User --role Admin --email admin@example.com;
+        if ! airflow users list | grep -q ${AIRFLOW_USER}; then
+          airflow users create --username ${AIRFLOW_USER} --password ${AIRFLOW_PASSWORD} --firstname ${AIRFLOW_FIRSTNAME} --lastname ${AIRFLOW_LASTNAME} --role Admin --email ${AIRFLOW_EMAIL};
         else
-          echo 'User admin already exists, skipping creation.';
+          echo 'User already exists, skipping creation.';
         fi
       "
     restart: on-failure 
@@ -96,7 +96,7 @@ services:
       - AIRFLOW__CORE__EXECUTOR=LocalExecutor
       - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       - AIRFLOW__API__AUTH_BACKENDS=airflow.api.auth.backend.basic_auth
-      - FAST_API_BASE_URL=http://backend:8282
+      - FAST_API_BASE_URL=${FAST_API_BASE_URL}
     ports:
       - "8080:8080"
     restart: unless-stopped
@@ -116,7 +116,7 @@ services:
       - AIRFLOW__CORE__EXECUTOR=LocalExecutor
       - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       - AIRFLOW__API__AUTH_BACKENDS=airflow.api.auth.backend.basic_auth
-      - FAST_API_BASE_URL=http://backend:8282
+      - FAST_API_BASE_URL=${FAST_API_BASE_URL}
     restart: unless-stopped
     volumes:
       - ./airflow/dags:/opt/airflow/dags

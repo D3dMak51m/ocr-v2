@@ -38,14 +38,19 @@ def handler(url: str, local_path: str, request_id: str, file_size_mb: float):
             exchange=exchange,
             routing_key="ocr_results",
             durable=True,
-            delivery_mode=Exchange.PERSISTENT_DELIVERY_MODE
+            delivery_mode=Exchange.PERSISTENT_DELIVERY_MODE,
         )
         queue(conn).declare()  # Declare the queue
 
         producer = Producer(conn)
         message = {"request_id": request.request_id, "result": jsonable_encoder(result)}
         producer.publish(
-            message, exchange=exchange, routing_key="ocr_results", serializer="json", durable=True, delivery_mode=Exchange.PERSISTENT_DELIVERY_MODE
+            message,
+            exchange=exchange,
+            routing_key="ocr_results",
+            serializer="json",
+            durable=True,
+            delivery_mode=Exchange.PERSISTENT_DELIVERY_MODE,
         )
 
 
