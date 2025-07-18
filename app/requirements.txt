@@ -22,3 +22,5 @@ tika==2.6.0
 beautifulsoup4==4.12.3
 tika-client==0.9.0
 chardet==5.2.0
+pika
+python-dotenv

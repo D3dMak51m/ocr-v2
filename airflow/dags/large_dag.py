@@ -5,6 +5,7 @@ import requests
 import json
 import os
 import logging
+from rabbit_connections import add_queue
 
 
 default_args = {
@@ -60,6 +61,7 @@ def call_fastapi_inference(**context):
             # context['task_instance'].xcom_push(key='inference_request', value=ocr_request)
             # context['task_instance'].xcom_push(key='inference_result', value=result)
             # return result
+            add_queue(result)
             requests.post(callback_url, json=result)
         else:
             error_response = {
@@ -91,7 +93,7 @@ dag = DAG(
 
 # Task 1: Call FastAPI inference with all trigger parameters
 inference_task = PythonOperator(
-    task_id="call_fastapi_inference",
+    task_id="call_fastapi_inference_large",
     python_callable=call_fastapi_inference,
     dag=dag,
 )

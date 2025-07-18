@@ -1,12 +1,27 @@
 version: '3.8'
 
 services:
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      - RABBITMQ_DEFAULT_USER=${RABBITMQ_USER}
+      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASS}
+    networks:
+      - app-network
+    
+
+
   backend:
     build:
       context: .
       dockerfile: backend.Dockerfile
     ports:
       - "8282:8282"
+    depends_on:
+      - rabbitmq
     restart: unless-stopped
     environment:
       - API_TOKEN=${API_TOKEN}
@@ -22,6 +37,20 @@ services:
     networks:
       - app-network
 
+
+  worker:
+    build:
+      context: .
+      dockerfile: backend.Dockerfile
+    depends_on:
+      - rabbitmq
+    command: ["python", "airflow_worker.py"]
+    environment:
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_DEFAULT_USER=${RABBITMQ_USER}
+      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASS}
+    networks:
+      - app-network
  
   tika-server:
     build:
@@ -70,6 +99,9 @@ services:
       - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       - AIRFLOW__API__AUTH_BACKENDS=airflow.api.auth.backend.basic_auth
       - FAST_API_BASE_URL=${FAST_API_BASE_URL}
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_DEFAULT_USER=${RABBITMQ_USER}
+      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASS}
     networks:
       - app-network
     volumes:
@@ -97,6 +129,9 @@ services:
       - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       - AIRFLOW__API__AUTH_BACKENDS=airflow.api.auth.backend.basic_auth
       - FAST_API_BASE_URL=${FAST_API_BASE_URL}
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_DEFAULT_USER=${RABBITMQ_USER}
+      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASS}
     ports:
       - "8080:8080"
     restart: unless-stopped
@@ -117,6 +152,9 @@ services:
       - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       - AIRFLOW__API__AUTH_BACKENDS=airflow.api.auth.backend.basic_auth
       - FAST_API_BASE_URL=${FAST_API_BASE_URL}
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_DEFAULT_USER=${RABBITMQ_USER}
+      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASS}
     restart: unless-stopped
     volumes:
       - ./airflow/dags:/opt/airflow/dags
