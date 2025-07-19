@@ -12,3 +12,36 @@ API_TOKEN=asdjkhj8hsd!s8adhASas
 FLOWER_USER=admin
 FLOWER_PASSWORD=admin_ocr_123SjC7s
 CELERY_QUEUE=small_files
+
+
+#### new starts from here
+
+# .env
+
+# API Token
+API_TOKEN=asdjkhj8hsd!s8adhASas
+
+
+# Postgres info for airflow
+POSTGRES_USER=airflow
+POSTGRES_PASSWORD=airflow
+POSTGRES_DB=airflow
+
+## AIRFLOW SETTINGS
+
+AIRFLOW_BASE_URL=http://airflow-webserver:8080
+AIRFLOW_USER=admin
+AIRFLOW_PASSWORD=admin
+AIRFLOW_EMAIL=admin@gmail.com
+AIRFLOW_FIRSTNAME=User
+AIRFLOW_LASTNAME=User
+
+
+# backend
+FAST_API_BASE_URL=http://backend:8282
+
+
+
+# rabbitmq
+RABBITMQ_USER=admin
+RABBITMQ_PASS=admin
