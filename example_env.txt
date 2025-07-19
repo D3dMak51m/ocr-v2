@@ -1,23 +1,3 @@
-RABBITMQ_USER=admin
-RABBITMQ_PASSWORD=admin_ocr_123SjC7s
-RABBITMQ_HOST=rabbitmq
-
-# Celery Configuration
-CELERY_BROKER_URL=amqp://admin:admin_ocr_123SjC7s@rabbitmq:5672//
-
-# API Token
-API_TOKEN=asdjkhj8hsd!s8adhASas
-
-# Flower Configuration
-FLOWER_USER=admin
-FLOWER_PASSWORD=admin_ocr_123SjC7s
-CELERY_QUEUE=small_files
-
-
-#### new starts from here
-
-# .env
-
 # API Token
 API_TOKEN=asdjkhj8hsd!s8adhASas
 
@@ -45,3 +25,6 @@ FAST_API_BASE_URL=http://backend:8282
 # rabbitmq
 RABBITMQ_USER=admin
 RABBITMQ_PASS=admin
+
+
+AIRFLOW_SECRET_KEY=X9VORFD8bvp2LH13wRjF0KtbJL2afX5E-coQkc33i-Y=

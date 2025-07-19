@@ -6,8 +6,6 @@ from ocr_models.bmodels import TextractRequest, AirflowTask
 import requests
 from fastapi.middleware.cors import CORSMiddleware
 
-from worker import process_ocr_task_small, process_ocr_task_large
-
 # Read root_path from environment variable, default to "/ocr"
 root_path = "/ocr"
 

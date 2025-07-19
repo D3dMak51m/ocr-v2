@@ -75,6 +75,12 @@ class ImageOcrResult(BaseModel):
         )
 
 
+class ErrorOcrResult(BaseModel):
+    status: str = "error"
+    message: str
+    status_code: int = 500
+    
+
 class DocOcrResult(BaseModel):
     text: Optional[str] = None
     images: List[ImageOcrResult]
@@ -90,13 +96,13 @@ class DocOcrResult(BaseModel):
             f"images=[\n    {images_str}\n])"
         )
 
+
 class AirflowTask(BaseModel):
     url: Optional[str] = None
     local_path: Optional[str] = None
     request_id: str
     file_size_mb: float
     callback_url: str
-    
 
     class Config:
         orm_mode = True
