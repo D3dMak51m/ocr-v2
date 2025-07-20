@@ -47,6 +47,7 @@ def call_fastapi_inference(**context) -> None:
 
     # Get configuration
     config = get_config()
+    fast_api_inference_url = config["fastapi_url"] + "/api/v1/inference"
 
     # Get parameters from DAG trigger
     dag_run_conf = context["dag_run"].conf or {}
@@ -62,9 +63,14 @@ def call_fastapi_inference(**context) -> None:
     logger.info(f"File Size: {ocr_request.get('file_size_mb', 'N/A')} MB")
 
     try:
+        # log fastapi url with inference and token
+        logger.info(
+            f"🔗 Calling FastAPI inference endpoint: {fast_api_inference_url}"
+        )
+        logger.info(f"🔑 Using API Token: {config['api_token']}")
         # Call FastAPI endpoint
         response = requests.post(
-            f"{config['fastapi_url']}/inference",
+            fast_api_inference_url,
             headers={
                 "Content-Type": "application/json",
                 "Authorization": f"Bearer {config['api_token']}",
@@ -80,18 +86,6 @@ def call_fastapi_inference(**context) -> None:
                 f"✅ Inference successful for request_id: {ocr_request['request_id']}"
             )
 
-            # Log the OCR results for visibility in Airflow UI
-            logger.info("📄 OCR Results:")
-            logger.info(f"Request ID: {result.get('request_id', 'N/A')}")
-            logger.info(f"Status: {result.get('status', 'N/A')}")
-
-            logger.info(f"!!!Result: {result}")
-
-            logger.info("Full OCR Response:")
-            logger.info(json.dumps(result, indent=2, ensure_ascii=False))
-
-            
-
             # Send to RabbitMQ queue
             if not add_queue(result):
                 # If RabbitMQ send fails, raise exception to fail the task
@@ -102,10 +96,16 @@ def call_fastapi_inference(**context) -> None:
             logger.info(f"✅ OCR TASK COMPLETED SUCCESSFULLY")
             logger.info(f"   Request ID: {ocr_request['request_id']}")
             logger.info(f"   URL: {ocr_request['url']}")
-            if text_found:
-                logger.info(f"   Text Extracted: {text_length} characters")
-            logger.info(f"   Result sent to RabbitMQ queue")
-            logger.info("=" * 80)
+
+            # Log the OCR results for visibility in Airflow UI
+            logger.info("📄 OCR Results:")
+            logger.info(f"Request ID: {result.get('request_id', 'N/A')}")
+            logger.info(f"Status: {result.get('status', 'N/A')}")
+
+            logger.info(f"!!!Result: {result}")
+
+            logger.info("Full OCR Response:")
+            logger.info(json.dumps(result, indent=2, ensure_ascii=False))
 
             return
 

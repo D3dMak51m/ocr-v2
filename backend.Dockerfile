@@ -28,5 +28,5 @@ RUN mkdir -p /app/temp_files
 
 EXPOSE 80
 # --root-path /api/ --forwarded-allow-ips "*"
-CMD ["uvicorn", "main:webapp", "--host", "0.0.0.0", "--port", "8282"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8282"]
 

@@ -7,22 +7,7 @@ This project provides an OCR (Optical Character Recognition) service to extract 
 
 ## 1. Create env file:
 
-create .env file in the root folder and add (change password and tokens accordingly):
-
-```sh
-# .env
-
-# API Token
-API_TOKEN=asdjkhj8hsd!s8adhASas
-
-
-# Postgres info for airflow
-POSTGRES_USER=airflow
-POSTGRES_PASSWORD=airflow
-POSTGRES_DB=airflow
-
-## 2. Run docker compose
-```
+create .env file in the root folder (example: example_env.txt):
 
 From the root folder, simply run:
 
@@ -30,6 +15,12 @@ From the root folder, simply run:
 ```sh
 docker compose up --build -d
 ```
+
+## Important notes:
+- Backend docs: http://0.0.0.0:8282/docs
+- Airflow UI: http://0.0.0.0:8080 # default login/password: admin/admin which can be modified in .env file
+- RabbitMQ UI: http://0.0.0.0:15672
+- RabbitMQ consume example: `consume.py` (or have a look at `consume2.py` if the former does not work)
 
 # Example Requests:
 
