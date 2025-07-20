@@ -1,20 +1,26 @@
-from fastapi import FastAPI, Depends, HTTPException, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from app import runner
-import os
-from ocr_models.bmodels import TextractRequest, AirflowTask
-import requests
+import logging
+from fastapi import FastAPI, Request, status
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.exceptions import RequestValidationError, HTTPException
 
-# Read root_path from environment variable, default to "/ocr"
-root_path = "/ocr"
+from api import endpoints
+from core.schemas import ApiResponse, ResponseStatus, ErrorDetail
+from config import settings
 
-webapp = FastAPI()
+# Configure logging
+logging.basicConfig(level=settings.LOG_LEVEL.upper())
+logger = logging.getLogger(__name__)
 
+app = FastAPI(
+    title="OCR Service API",
+    description="A service to extract text from various document types.",
+    version="1.0.0",
+)
 
+# --- Middleware ---
 origins = ["*"]
-
-webapp.add_middleware(
+app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
     allow_credentials=True,
@@ -22,82 +28,46 @@ webapp.add_middleware(
     allow_headers=["*"],
 )
 
-token_auth_scheme = HTTPBearer()
 
-API_TOKEN = os.getenv("API_TOKEN", "your_secret_token")
-
-
-def verify_token(http_auth: HTTPAuthorizationCredentials = Depends(token_auth_scheme)):
-    if http_auth.credentials != API_TOKEN:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or missing token"
-        )
-
-
-@webapp.get("/")
-async def read_root():
-    return {"message": "Hello from FastAPI, OCR service is running!"}
-
-
-@webapp.post("/inference")
-def text_extraction(
-    request: TextractRequest,
-    token: HTTPAuthorizationCredentials = Depends(verify_token),
-) -> dict:
-    """
-    ## Supported extensions:
-
-    - "jpeg/jpg",
-    - "jpeg",
-    - "jpg",
-    - "png",
-    - "gif",
-    - "bmp",
-    - "pdf"
-    - "doc",
-    - "docx",
-    - "ppt",
-    - "pptx"
-    """
-    try:
-        if request.file_size_mb > 50:
-            # can not handle files larger than 50MB
-            return {
-                "request_id": request.request_id,
-                "status": "File size is too large. Please use the \
-                    /queue_inference endpoint for files larger than 50MB.",
-            }
-        result = runner(request)
-        resp = {"request_id": request.request_id, "result": result}
-        return resp
-    except Exception as e:
-        error_msg = str(e)
-        print(Exception, e)
-        return {"status": error_msg}
-
-
-@webapp.post("/airflow_task")
-def create_airflow_task(
-    request: AirflowTask,
-    token: HTTPAuthorizationCredentials = Depends(verify_token),
-) -> dict:
-
-    AIRFLOW_BASE_URL = os.getenv("AIRFLOW_BASE_URL", "http://airflow-webserver:8080")
-    # print(AIRFLOW_BASE_URL)
-    airflow_url = f"{AIRFLOW_BASE_URL}/api/v1/dags/airflow_dag/dagRuns"
-    airflow_url_large = f"{AIRFLOW_BASE_URL}/api/v1/airflow_large/dagRuns"
-
-    if request.file_size_mb <= 5:
-        preffered_dag_url = airflow_url
-    else:
-        preffered_dag_url = airflow_url_large
-
-    response = requests.post(
-        preffered_dag_url, json={"conf": request.dict()}, auth=("admin", "admin")
+# --- Exception Handlers ---
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request,
+                                       exc: RequestValidationError):
+    """Handles Pydantic validation errors."""
+    error_detail = ErrorDetail(code="VALIDATION_ERROR", message=str(exc))
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        content=ApiResponse(
+            request_id="N/A", status=ResponseStatus.ERROR, error=error_detail
+        ).dict(),
     )
-    print(f"Response from Airflow: {response.status_code}, {response.text}")
 
-    if response.status_code == 200:
-        return {"request_id": request.request_id, "status": "received"}
-    else:
-        return {"request_id": request.request_id, "status": "failed"}
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    """Handles FastAPI's built-in HTTPExceptions to conform to ApiResponse."""
+    try:
+        # Assumes detail is a dict from our custom error model
+        error_dict = exc.detail
+        error_detail = ErrorDetail(
+            code=error_dict.get('code', 'HTTP_ERROR'),
+            message=error_dict.get('message', str(exc.detail)))
+    except (TypeError, AttributeError):
+        # Fallback for standard HTTPException details
+        error_detail = ErrorDetail(code="HTTP_ERROR", message=str(exc.detail))
+    
+    return JSONResponse(
+        status_code=exc.status_code,
+        content=ApiResponse(
+            request_id="N/A", status=ResponseStatus.ERROR, error=error_detail
+        ).dict(exclude_none=True),
+    )
+
+# --- Routers ---
+app.include_router(endpoints.router, prefix="/api/v1", tags=["OCR"])
+
+
+@app.get("/", tags=["Health Check"])
+async def read_root():
+    """Root endpoint to check if the service is running."""
+    return {"message": "Hello from FastAPI, OCR service is running!"}

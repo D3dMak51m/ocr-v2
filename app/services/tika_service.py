@@ -1,112 +1,141 @@
-import requests
 import os
+import io
+import logging
 import tempfile
 import zipfile
-from services import image_service
-from services.utils import text_formatting
-from ocr_models.bmodels import DocOcrResult
-from tika_client import TikaClient
 from pathlib import Path
-from ocr_models import extensions_wrapper
-import fitz
+from typing import List
+
+import requests
+import fitz  # PyMuPDF
 from PIL import Image
-import io
+from requests.exceptions import RequestException
 
-tika_server_url_root = "http://tika-server:9998"
+from config import settings
+from core import file_types
+from core.exceptions import ExternalServiceError
+from core.schemas import DocOcrResult, ImageOcrResult
+from services import image_service, utils
 
-
-tika_server_url_unpack = tika_server_url_root + "/unpack"
-tika_server_url_tika = tika_server_url_root + "/tika"
-
-
-# X-TIKA:embedded_resource_path
-headers = {"Accept-Charset": "UTF-8"}  # Adjust content type as needed
-
-
-def tika_get_content(filepath):
-    with TikaClient(tika_url=tika_server_url_root) as client:
-        path = Path(filepath)
-        text = client.tika.as_text.from_file(path)
-        # text = client.tika.as_text.from_file(filepath)
-        print(f"text from tika client: {text}")
-    if text is not None:
-        return text.content
-    return ""
+# Initialize logger
+logger = logging.getLogger(__name__)
 
 
-def tika_text_from_images(filepath):
-    with open(filepath, "rb") as f:
-        response = requests.put(tika_server_url_unpack, data=f, headers=headers)
-
-        image_response = []
-
-        if response.status_code == 200:
-            print("status 200")
-            with tempfile.NamedTemporaryFile(suffix=".zip", delete=True) as tmpzip:
-                tmpzip.write(response.content)
-                tmpzip.seek(0)
-
-                with tempfile.TemporaryDirectory() as temp_extract_folder:
-
-                    with zipfile.ZipFile(tmpzip, "r") as zip_ref:
-                        # Extract all contents to the temp directory
-                        zip_ref.extractall(temp_extract_folder)
-
-                        extracted_files = [
-                            temp_extract_folder + "/" + item
-                            for item in os.listdir(temp_extract_folder)
-                        ]
-                        print(f"Extracted files: {extracted_files}")
-
-                        for exfile in extracted_files:
-                            try:
-                                res = image_service.runner_image_v1(exfile)
-                                image_response.append(res)
-
-                            except Exception as e:
-                                print(e)
-
-        else:
-            print(f"status {response.status_code}")
-
-        return image_response
+def _tika_get_text_content(filepath: str) -> str:
+    """Extracts plain text content from a document using Apache Tika."""
+    tika_url = f"{settings.TIKA_SERVER_URL}/tika"
+    logger.info(f"Sending file to Tika for text extraction: {tika_url}")
+    try:
+        with open(filepath, "rb") as f:
+            response = requests.put(
+                tika_url,
+                data=f,
+                headers={"Accept": "text/plain", "Content-Type":
+                         "application/octet-stream"},
+                timeout=120  # 2-minute timeout for large files
+            )
+            response.raise_for_status()
+            return response.text
+    except RequestException as e:
+        msg = f"Tika server request failed: {e}"
+        logger.error(msg)
+        raise ExternalServiceError("Tika", msg)
+    except Exception as e:
+        msg = f"An unexpected error occurred during Tika text extraction: {e}"
+        logger.error(msg)
+        raise ExternalServiceError("Tika", msg)
 
 
-def pdf_to_images_text(pdf_path):
-    result_list = []
-    with fitz.open(pdf_path) as pdf_file:
-        for page_number in range(len(pdf_file)):
-            page = pdf_file[page_number]
+def _tika_extract_embedded_files(filepath: str) -> List[ImageOcrResult]:
+    """Unpacks embedded files (like images) from a document using Tika."""
+    tika_url = f"{settings.TIKA_SERVER_URL}/unpack"
+    logger.info(f"Sending file to Tika for unpacking embedded files: \
+                {tika_url}")
+    
+    ocr_results = []
+    try:
+        with open(filepath, "rb") as f:
+            response = requests.put(
+                tika_url, data=f, 
+                headers={"Accept": "application/zip"}, timeout=120
+            )
+            response.raise_for_status()
 
-            image_list = page.get_images()
+        with tempfile.NamedTemporaryFile(suffix=".zip", delete=True) as tmpzip:
+            tmpzip.write(response.content)
+            tmpzip.seek(0)
 
-            for image_index, img in enumerate(image_list):
-                xref = img[0]
-                base_image = pdf_file.extract_image(xref)
-                image_bytes = base_image["image"]
-                image_ext = base_image["ext"]
-                pil_image = Image.open(io.BytesIO(image_bytes))
+            with zipfile.ZipFile(tmpzip, "r") as zip_ref:
+                for item_name in zip_ref.namelist():
+                    # Skip metadata and other non-image files
+                    if item_name.startswith('__'):
+                        continue
+                    try:
+                        file_bytes = zip_ref.read(item_name)
+                        # Process image directly from bytes
+                        result = image_service.process_image_from_bytes(
+                            file_bytes
+                            )
+                        result.filename = os.path.basename(item_name)
+                        ocr_results.append(result)
+                    except Exception as e:
+                        logger.warning(f"Could not process embedded file \
+                                       '{item_name}': {e}")
+    except RequestException as e:
+        msg = f"Tika server request failed during unpacking: {e}"
+        logger.error(msg)
+        raise ExternalServiceError("Tika", msg)
 
-                with tempfile.NamedTemporaryFile(
-                    suffix=f".{image_ext}", delete=True
-                ) as tempImg:
-                    pil_image.save(tempImg)
-                    data = image_service.runner_image_v1(tempImg)
-                    data.filename = f"page_{page_number}_img_{image_index}.{image_ext}"
-                    result_list.append(data)
-
-    return result_list
+    return ocr_results
 
 
-def runner_tika(filepath, filetype):
-    text = tika_get_content(filepath)
-    print(f"text from tike get content: {text}")
+def _pdf_extract_images(pdf_path: str) -> List[ImageOcrResult]:
+    """Extracts images from each page of a PDF and runs OCR on them."""
+    ocr_results = []
+    logger.info(f"Extracting images directly from PDF: {pdf_path}")
+    try:
+        with fitz.open(pdf_path) as pdf_file:
+            for page_num in range(len(pdf_file)):
+                image_list = pdf_file.get_page_images(page_num, full=True)
+                for img_index, img_info in enumerate(image_list):
+                    xref = img_info[0]
+                    base_image = pdf_file.extract_image(xref)
+                    image_bytes = base_image["image"]
+                    image_ext = base_image["ext"]
+                    
+                    try:
+                        # More efficient: process image directly from bytes
+                        result = image_service.\
+                            process_image_from_bytes(image_bytes)
+                        result.filename = f"page_{page_num + 1}_img_\
+                            {img_index + 1}.{image_ext}"
+                        ocr_results.append(result)
+                    except Exception as e:
+                        logger.warning(f"Could not process image on page \
+                                       {page_num+1}: {e}")
+    except Exception as e:
+        logger.error(f"Failed to process PDF file for image extraction: {e}")
+        # Don't raise, as we might still have text from Tika
+    return ocr_results
 
-    text = text_formatting(text)
-    if filetype == extensions_wrapper.TYPE_PDF:
-        images = pdf_to_images_text(filepath)
+
+def process_document_with_tika(filepath: str, file_type: str) -> DocOcrResult:
+    """
+    Processes a document using Tika for text and embedded images.
+    """
+    # 1. Get main text content from Tika
+    raw_text = _tika_get_text_content(filepath)
+    formatted_text = utils.text_formatting(raw_text)
+
+    # 2. Extract and OCR images based on file type
+    image_results = []
+    if file_type == file_types.TYPE_PDF:
+        # For PDFs, PyMuPDF is often more reliable for image extraction
+        image_results = _pdf_extract_images(filepath)
     else:
-        images = tika_text_from_images(filepath)
+        # For DOCX, PPTX, etc., use Tika's unpack feature
+        image_results = _tika_extract_embedded_files(filepath)
 
-    docResult = DocOcrResult(text=text, images=images, service="tika")
-    return docResult
+    return DocOcrResult(text=formatted_text,
+                        images=image_results,
+                        service="tika")

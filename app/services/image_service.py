@@ -1,71 +1,121 @@
-import requests
-import tempfile
-
-import pytesseract
+import logging
 import re
-
-from services.utils import extract_text_uzb
-from services.utils import language_detector
-from ocr_models.bmodels import ImageOcrResult
+import io
 from PIL import Image
+import pytesseract
 import chardet
 
+from core.schemas import ImageOcrResult
+from services.utils import language_detector, text_formatting
 
-def ensure_utf8(text: str) -> str:
-    detected = chardet.detect(text.encode())
-    if detected["encoding"] and detected["encoding"].lower() != "utf-8":
-        return text.encode(detected["encoding"], errors="ignore").decode("utf-8")
+# Initialize logger
+logger = logging.getLogger(__name__)
+
+
+def _ensure_utf8(text: str) -> str:
+    """
+    Detects and converts text to UTF-8 if it's not already.
+    This can help clean up garbled text from OCR engines.
+    """
+    try:
+        detected = chardet.detect(text.encode())
+        encoding = detected.get("encoding")
+        if encoding and encoding.lower() != "utf-8":
+            logger.warning(f"Detected non-UTF-8 encoding '{encoding}',\
+                           attempting to convert.")
+            return text.encode(encoding, errors="ignore").decode("utf-8")
+    except Exception as e:
+        logger.error(f"Error during UTF-8 conversion: {e}")
     return text
 
 
-def detect_image_encoding(pil_image):
+def _detect_image_orientation(pil_image: Image.Image) -> tuple[str, float]:
+    """
+    Detects script orientation and confidence using Tesseract's OSD.
+    """
     try:
         osd = pytesseract.image_to_osd(
             pil_image, config="-c min_characters_to_try=5"
         )
-        script = re.search("Script: ([a-zA-Z]+)\n", osd).group(1)
-        conf = re.search("Script confidence: (\d+\.?(\d+)?)", osd).group(1)
-        return script, conf
+        script = re.search(r"Script: (\w+)", osd)
+        conf = re.search(r"Script confidence: (\d+\.?\d*)", osd)
+
+        script_name = script.group(1) if script else "Unknown"
+        confidence = float(conf.group(1)) if conf else 0.0
+
+        return script_name, confidence
+    except pytesseract.TesseractError as e:
+        logger.warning(f"Could not perform OSD (orientation detection): {e}")
+        return "N/A", 0.0
     except Exception as e:
-        print(f"error: {e}")
-        return None, 0.0
+        logger.error(f"An unexpected error occurred during OSD: {e}")
+        return "N/A", 0.0
 
 
-def runner_image_v1_with_pil(pil_image: Image.Image) -> ImageOcrResult:
-    encoding, conf = detect_image_encoding(pil_image)
-    print(f"encoding: {encoding}, conf: {conf}")
-    raw_text = extract_text_uzb(pil_image)
-    text = ensure_utf8(" ".join(raw_text.replace("\n", " ").split()))
-    language_d = language_detector(text)
-    language = language_d.get("language")
-    score = language_d.get("score")
-    res = ImageOcrResult(
-        status="success",
-        text=text,
+def process_image_from_pil(pil_image: Image.Image) -> ImageOcrResult:
+    """
+    Performs OCR on a PIL.Image object and returns a structured result.
+    This is the core image processing function.
+    """
+    # 1. Detect image orientation and script
+    encoding, conf = _detect_image_orientation(pil_image)
+    logger.info(f"Image script detection: {encoding} (Confidence: {conf:.2f})")
+
+    # 2. Extract raw text using Tesseract
+    try:
+        raw_text = pytesseract.image_to_string(
+            image=pil_image, lang="uzb_cyrl+uzb+en",
+            config="-c min_characters_to_try=5"
+        )
+    except pytesseract.TesseractError as e:
+        logger.error(f"Tesseract failed to process the image: {e}")
+        # Return a result indicating failure at the OCR step
+        return ImageOcrResult(text=f"OCR failed: {e}")
+
+    # 3. Clean and format the text
+    cleaned_text = text_formatting(raw_text)
+    final_text = _ensure_utf8(cleaned_text)
+
+    # 4. Detect language of the extracted text
+    lang_info = language_detector(final_text) if final_text else {}
+    language = lang_info.get("language")
+    score = lang_info.get("score")
+
+    # 5. Assemble the final result object
+    result = ImageOcrResult(
+        text=final_text,
         language=language,
-        language_score=score,
+        language_score=float(score) if score is not None else None,
         encoding=encoding,
-        encoding_conf=conf,
+        encoding_conf=float(conf) if conf is not None else None,
     )
-    return res
+    return result
 
 
-def runner_image_v1(tempimagepath) -> ImageOcrResult:
-    with Image.open(tempimagepath) as pil_img:
-        return runner_image_v1_with_pil(pil_img)
+def process_image_from_path(image_path: str) -> ImageOcrResult:
+    """
+    Opens an image from a file path and processes it.
+    """
+    logger.info(f"Processing image from path: {image_path}")
+    try:
+        with Image.open(image_path) as pil_img:
+            return process_image_from_pil(pil_img)
+    except FileNotFoundError:
+        logger.error(f"Image file not found at path: {image_path}")
+        raise
+    except Exception as e:
+        logger.error(f"Failed to open or process image at {image_path}: {e}")
+        raise
 
 
-def runner_image_url(url):
-    with tempfile.NamedTemporaryFile(delete=True) as temp_image:
-        # Download the image and write to the temporary file
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) \
-                AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 \
-                    Safari/537.3"
-        }
-        response = requests.get(url, headers=headers)
-        temp_image.write(response.content)
-        # Ensure all data is written before closing the file
-        temp_image.flush()
-
-        return runner_image_v1(temp_image.name)
+def process_image_from_bytes(image_bytes: bytes) -> ImageOcrResult:
+    """
+    Processes an image directly from a byte stream.
+    """
+    logger.info("Processing image from byte stream.")
+    try:
+        with Image.open(io.BytesIO(image_bytes)) as pil_img:
+            return process_image_from_pil(pil_img)
+    except Exception as e:
+        logger.error(f"Failed to process image from bytes: {e}")
+        raise
