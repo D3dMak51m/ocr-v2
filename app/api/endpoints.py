@@ -40,12 +40,12 @@ def text_extraction(request: OcrRequest) -> ApiResponse:
     Performs OCR on a file specified by URL or local path.
 
     - **Supported extensions:** jpg, png, pdf, doc, docx, ppt, pptx, etc.
-    - Files larger than 50MB should use the `/airflow_task` endpoint.
+    - Files larger than 50MB should use the `/queue_inference` endpoint.
     """
     if request.file_size_mb > 50:
         raise HTTPException(
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-            detail="File size exceeds 50MB. Please use the /airflow_task \
+            detail="File size exceeds 50MB. Please use the /queue_inference \
                 endpoint for large files.",
         )
 
@@ -77,7 +77,7 @@ def text_extraction(request: OcrRequest) -> ApiResponse:
 
 
 @router.post(
-    "/airflow_task",
+    "/queue_inference",
     response_model=ApiResponse,
     summary="Queue a large file for processing via Airflow",
     dependencies=[Depends(verify_token)],

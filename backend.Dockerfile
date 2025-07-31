@@ -18,10 +18,10 @@ RUN pip3 install --no-cache-dir -r requirements.txt
 
 COPY app/ .
 
-COPY ./app/rus.traineddata /usr/share/tesseract-ocr/5/tessdata/
-COPY ./app/uzb_cyrl.traineddata /usr/share/tesseract-ocr/5/tessdata/
-COPY ./app/uzb.traineddata /usr/share/tesseract-ocr/5/tessdata/
-COPY ./app/en.traineddata /usr/share/tesseract-ocr/5/tessdata/
+COPY ./app/traineddata/rus.traineddata /usr/share/tesseract-ocr/5/tessdata/
+COPY ./app/traineddata/uzb_cyrl.traineddata /usr/share/tesseract-ocr/5/tessdata/
+COPY ./app/traineddata/uzb.traineddata /usr/share/tesseract-ocr/5/tessdata/
+COPY ./app/traineddata/en.traineddata /usr/share/tesseract-ocr/5/tessdata/
 
 
 RUN mkdir -p /app/temp_files

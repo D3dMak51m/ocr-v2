@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import List
 
 import requests
-import fitz  # PyMuPDF
+import fitz # PyMuPDF
 from PIL import Image
 from requests.exceptions import RequestException
 
@@ -130,7 +130,6 @@ def process_document_with_tika(filepath: str, file_type: str) -> DocOcrResult:
     # 2. Extract and OCR images based on file type
     image_results = []
     if file_type == file_types.TYPE_PDF:
-        # For PDFs, PyMuPDF is often more reliable for image extraction
         image_results = _pdf_extract_images(filepath)
     else:
         # For DOCX, PPTX, etc., use Tika's unpack feature

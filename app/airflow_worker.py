@@ -9,13 +9,13 @@ load_dotenv()
 
 host = os.getenv("RABBITMQ_HOST", "rabbitmq")
 credentials = pika.PlainCredentials(
-    os.getenv("RABBITMQ_DEFAULT_USER", "admin"),
-    os.getenv("RABBITMQ_DEFAULT_PASS", "admin_ocr_123SjC7s")
+    os.getenv("RABBITMQ_USER", "admin"),
+    os.getenv("RABBITMQ_PASS", "admin")
 )
 params = pika.ConnectionParameters(host, credentials=credentials)
 
-print(os.getenv("RABBITMQ_DEFAULT_USER", "admin"))
-print(os.getenv("RABBITMQ_DEFAULT_PASS", "admin_ocr_123SjC7s"))
+print(os.getenv("RABBITMQ_USER", "admin"))
+print(os.getenv("RABBITMQ_PASS", "admin"))
 
 
 def callback(ch, method, properties, body):

@@ -52,7 +52,7 @@ def get_rabbitmq_connection():
             connection.close()
 
 
-def add_queue(message: Dict[str, Any]) -> bool:
+def add_response_to_queue(message: Dict[str, Any]) -> bool:
     """
     Add message to RabbitMQ queue
 

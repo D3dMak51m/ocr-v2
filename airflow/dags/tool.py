@@ -7,7 +7,7 @@ import logging
 import requests
 import json
 from typing import Dict, Any
-from rabbit_connections import add_queue
+from rabbit_connections import add_response_to_queue
 
 logger = logging.getLogger(__name__)
 
@@ -87,7 +87,7 @@ def call_fastapi_inference(**context) -> None:
             )
 
             # Send to RabbitMQ queue
-            if not add_queue(result):
+            if not add_response_to_queue(result):
                 # If RabbitMQ send fails, raise exception to fail the task
                 raise Exception("Failed to send result to RabbitMQ queue")
 

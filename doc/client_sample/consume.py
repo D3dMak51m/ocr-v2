@@ -4,7 +4,7 @@ import json
 # Setup connection and credentials
 connection = pika.BlockingConnection(
     pika.ConnectionParameters(
-        host='localhost',
+        host='rabbitmq',
         port=5672,
         credentials=pika.PlainCredentials('admin', 'admin')
     )

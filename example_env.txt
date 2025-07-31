@@ -13,8 +13,8 @@ AIRFLOW_BASE_URL=http://airflow-webserver:8080
 AIRFLOW_USER=admin
 AIRFLOW_PASSWORD=admin
 AIRFLOW_EMAIL=admin@gmail.com
-AIRFLOW_FIRSTNAME=User
-AIRFLOW_LASTNAME=User
+AIRFLOW_FIRSTNAME=UserFirstname
+AIRFLOW_LASTNAME=UserLastname
 
 
 # backend
@@ -29,3 +29,6 @@ RABBITMQ_PASS=admin
 
 AIRFLOW_SECRET_KEY=X9VORFD8bvp2LH13wRjF0KtbJL2afX5E-coQkc33i-Y=
 TIKA_SERVER_URL=http://tika-server:9998
+
+# Path to data folder
+DATA_PATH=/var/lib/datagaze/.data/data
