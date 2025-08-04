@@ -47,7 +47,7 @@ def call_fastapi_inference(**context) -> None:
 
     # Get configuration
     config = get_config()
-    fast_api_inference_url = config["fastapi_url"] + "/api/v1/inference"
+    fast_api_inference_url = config["fastapi_url"] + "/api/v2/inference"
 
     # Get parameters from DAG trigger
     dag_run_conf = context["dag_run"].conf or {}

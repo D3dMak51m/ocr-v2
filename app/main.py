@@ -64,7 +64,7 @@ async def http_exception_handler(request: Request, exc: HTTPException):
     )
 
 # --- Routers ---
-app.include_router(endpoints.router, prefix="/api/v1", tags=["OCR"])
+app.include_router(endpoints.router, prefix="/api/v2", tags=["OCR"])
 
 
 @app.get("/", tags=["Health Check"])
