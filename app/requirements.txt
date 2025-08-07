@@ -9,3 +9,4 @@ PyMuPDF==1.24.10
 beautifulsoup4==4.12.3
 chardet==5.2.0
 python-dotenv
+opencv-python

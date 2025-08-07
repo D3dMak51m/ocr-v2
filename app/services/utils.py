@@ -6,6 +6,11 @@ import sys
 import re
 from bs4 import BeautifulSoup
 
+import cv2
+import numpy as np
+from typing import Union
+
+
 sys.path.insert(0, "..")
 from lang_detector import detector
 
@@ -55,3 +60,75 @@ def language_detector(text_uz: str):
 def xml_to_txt(xml_table):
     soup = BeautifulSoup(xml_table, "html.parser")
     return text_formatting(soup.get_text())
+
+
+def enhance_ocr_image_v1(
+    image_input: Union[str, np.ndarray],
+    scale_factor: float = 2.0,
+    save_debug: bool = False
+) -> np.ndarray:
+    """
+    Enhance an image for OCR: grayscale, denoise, threshold, sharpen, upscale.
+    If a file path is given, the original is replaced with the enhanced image.
+
+    Args:
+        image_input (str or np.ndarray): File path or image array (BGR).
+        scale_factor (float): Scaling factor for resizing the image.
+        save_debug (bool): Save intermediate images for inspection.
+
+    Returns:
+        np.ndarray: Final preprocessed image.
+    """
+    if isinstance(image_input, str):
+        img = cv2.imread(image_input)
+        if img is None:
+            raise ValueError(f"Failed to load image from path: {image_input}")
+        filename = os.path.splitext(os.path.basename(image_input))[0]
+        original_path = image_input
+    elif isinstance(image_input, np.ndarray):
+        img = image_input.copy()
+        filename = "debug"
+        original_path = None
+    else:
+        raise TypeError("image_input must be a file path or a NumPy array.")
+
+    # Step 1: Grayscale
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
+    # Step 2: Denoising
+    denoised = cv2.fastNlMeansDenoising(gray, h=30)
+
+    # Step 3: Thresholding
+    thresh = cv2.adaptiveThreshold(
+        denoised, 255,
+        cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+        cv2.THRESH_BINARY, 11, 2
+    )
+
+    # Step 4: Sharpening
+    kernel = np.array([[0, -1, 0], [-1, 5, -1], [0, -1, 0]])
+    sharpened = cv2.filter2D(thresh, -1, kernel)
+
+    # Step 5: Resizing
+    resized = cv2.resize(
+        sharpened, None,
+        fx=scale_factor, fy=scale_factor,
+        interpolation=cv2.INTER_CUBIC
+    )
+
+    # Save debug steps
+    if save_debug:
+        cv2.imwrite(f"{filename}_gray.jpg", gray)
+        cv2.imwrite(f"{filename}_denoised.jpg", denoised)
+        cv2.imwrite(f"{filename}_thresh.jpg", thresh)
+        cv2.imwrite(f"{filename}_sharpened.jpg", sharpened)
+        cv2.imwrite(f"{filename}_resized.jpg", resized)
+
+    # Replace original file (if applicable)
+    if original_path:
+        os.remove(original_path)
+        cv2.imwrite(original_path, resized)
+
+    return resized
+
+
