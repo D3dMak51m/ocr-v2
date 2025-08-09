@@ -6,7 +6,7 @@ import pytesseract
 import chardet
 
 from core.schemas import ImageOcrResult
-from services.utils import language_detector, text_formatting
+from services.utils import language_detector, text_formatting, enhance_ocr_image_v1
 
 # Initialize logger
 logger = logging.getLogger(__name__)
@@ -99,7 +99,9 @@ def process_image_from_path(image_path: str) -> ImageOcrResult:
     logger.info(f"Processing image from path: {image_path}")
     try:
         with Image.open(image_path) as pil_img:
-            return process_image_from_pil(pil_img)
+            # enhance the image
+            enhanced_image = enhance_ocr_image_v1(pil_img, scale_factor=2.0)
+            return process_image_from_pil(enhanced_image)
     except FileNotFoundError:
         logger.error(f"Image file not found at path: {image_path}")
         raise

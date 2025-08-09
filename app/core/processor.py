@@ -10,7 +10,6 @@ from core.schemas import OcrRequest, DocOcrResult, ImageOcrResult
 from core.exceptions import FileProcessingError, UnsupportedFileTypeError
 import core.file_types as file_types
 from services import image_service, tika_service, utils
-from services.utils import enhance_ocr_image_v1
 from typing import Union
 
 
@@ -63,11 +62,6 @@ def process_file_path(filepath: str) -> Union[DocOcrResult, ImageOcrResult]:
         )
 
     if file_type == file_types.TYPE_IMG:
-        # TODO
-
-        # Enhance the image before processing
-        enhanced_image = enhance_ocr_image_v1(filepath, scale_factor=2.0)
-
         return image_service.process_image_from_path(filepath)
 
     if file_type in file_types.TIKA_FILE_TYPES:

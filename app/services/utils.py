@@ -61,36 +61,29 @@ def xml_to_txt(xml_table):
     soup = BeautifulSoup(xml_table, "html.parser")
     return text_formatting(soup.get_text())
 
-
 def enhance_ocr_image_v1(
-    image_input: Union[str, np.ndarray],
+    image_input: Image.Image,
     scale_factor: float = 2.0,
-    save_debug: bool = False
-) -> np.ndarray:
+    save_debug: bool = False,
+    debug_prefix: str = "debug"
+) -> Image.Image:
     """
-    Enhance an image for OCR: grayscale, denoise, threshold, sharpen, upscale.
-    If a file path is given, the original is replaced with the enhanced image.
-
+    Enhance a PIL image for OCR: grayscale, denoise, threshold, sharpen, upscale.
+    
     Args:
-        image_input (str or np.ndarray): File path or image array (BGR).
+        image_input (PIL.Image.Image): Input image in RGB or L mode.
         scale_factor (float): Scaling factor for resizing the image.
         save_debug (bool): Save intermediate images for inspection.
+        debug_prefix (str): Prefix for debug filenames if save_debug is True.
 
     Returns:
-        np.ndarray: Final preprocessed image.
+        PIL.Image.Image: Enhanced image as a PIL image in mode 'L'.
     """
-    if isinstance(image_input, str):
-        img = cv2.imread(image_input)
-        if img is None:
-            raise ValueError(f"Failed to load image from path: {image_input}")
-        filename = os.path.splitext(os.path.basename(image_input))[0]
-        original_path = image_input
-    elif isinstance(image_input, np.ndarray):
-        img = image_input.copy()
-        filename = "debug"
-        original_path = None
-    else:
-        raise TypeError("image_input must be a file path or a NumPy array.")
+    if not isinstance(image_input, Image.Image):
+        raise TypeError("image_input must be a PIL.Image.Image object.")
+    
+    # Convert to BGR (OpenCV format)
+    img = np.array(image_input.convert("RGB"))[:, :, ::-1]  # RGB to BGR
 
     # Step 1: Grayscale
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
@@ -116,19 +109,15 @@ def enhance_ocr_image_v1(
         interpolation=cv2.INTER_CUBIC
     )
 
-    # Save debug steps
+    # Save debug images if needed
     if save_debug:
-        cv2.imwrite(f"{filename}_gray.jpg", gray)
-        cv2.imwrite(f"{filename}_denoised.jpg", denoised)
-        cv2.imwrite(f"{filename}_thresh.jpg", thresh)
-        cv2.imwrite(f"{filename}_sharpened.jpg", sharpened)
-        cv2.imwrite(f"{filename}_resized.jpg", resized)
+        cv2.imwrite(f"{debug_prefix}_gray.jpg", gray)
+        cv2.imwrite(f"{debug_prefix}_denoised.jpg", denoised)
+        cv2.imwrite(f"{debug_prefix}_thresh.jpg", thresh)
+        cv2.imwrite(f"{debug_prefix}_sharpened.jpg", sharpened)
+        cv2.imwrite(f"{debug_prefix}_resized.jpg", resized)
 
-    # Replace original file (if applicable)
-    if original_path:
-        os.remove(original_path)
-        cv2.imwrite(original_path, resized)
-
-    return resized
+    # Return final result as PIL image (mode "L" = grayscale)
+    return Image.fromarray(resized)
 
 
