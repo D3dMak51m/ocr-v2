@@ -90,8 +90,8 @@ def call_fastapi_inference(**context) -> None:
             if not add_response_to_queue(result):
                 # If RabbitMQ send fails, raise exception to fail the task
                 raise Exception("Failed to send result to RabbitMQ queue")
-            # requests.post("https://webhook.site/cc824db3-cb50-41bd-8710-0ee28d2731f4", 
-            #               json=result)
+            requests.post("https://webhook.site/cc824db3-cb50-41bd-8710-0ee28d2731f4", 
+                          json=result)
             # Log success summary
             logger.info("=" * 80)
             logger.info(f"✅ OCR TASK COMPLETED SUCCESSFULLY")

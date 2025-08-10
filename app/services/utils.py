@@ -89,7 +89,7 @@ def enhance_ocr_image_v1(
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
     # Step 2: Denoising
-    denoised = cv2.fastNlMeansDenoising(gray, h=30)
+    denoised = cv2.fastNlMeansDenoising(gray, h=25)
 
     # Step 3: Thresholding
     thresh = cv2.adaptiveThreshold(

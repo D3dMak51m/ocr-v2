@@ -176,6 +176,19 @@ services:
     networks:
       - app-network
 
+  iron_ocr:
+    build:
+      context: .
+      dockerfile: ironocr.Dockerfile
+    image: ironocr-service:latest
+    environment:
+      IRON_OCR_LICENSE_KEY: "IRONSUITE.S.KOMOLOV.CSEC.UZ.19582-EE8E903EF4-HXQ6U-JMMRTUTTY5VB-GTBQESTF7M6L-VQXOAYX4Z4NE-YI5POKCOXD6K-3CQKPJ6ZUDWM-HWMUU3VCU4PK-45JIAE-TZWE5L46RHSQEA-DEPLOYMENT.TRIAL-6ARJGX.TRIAL.EXPIRES.09.SEP.2025"
+    ports:
+      - "8081:8080"
+    networks:
+      - app-network
+
+
 networks:
   app-network:
     driver: bridge
