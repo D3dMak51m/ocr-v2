@@ -60,7 +60,9 @@ def _tika_extract_embedded_files(filepath: str) -> List[ImageOcrResult]:
                 headers={"Accept": "application/zip"}, timeout=120
             )
             response.raise_for_status()
-
+        logger.info(
+            f"Successfully unpacked embedded files from {filepath} using Tika the content {response.content[:100]}..."
+        )
         with tempfile.NamedTemporaryFile(suffix=".zip", delete=True) as tmpzip:
             tmpzip.write(response.content)
             tmpzip.seek(0)
