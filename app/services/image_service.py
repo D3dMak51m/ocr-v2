@@ -11,6 +11,13 @@ import uuid, json
 import requests
 import io
 
+
+url = " http://iron_ocr:8080/ocr"
+params = {
+    "lang": "uzbek,uzbek-cyrillic"
+}
+
+
 # Initialize logger
 logger = logging.getLogger(__name__)
 
@@ -66,11 +73,11 @@ def process_image_from_pil(pil_image: Image.Image) -> ImageOcrResult:
 
     # 2. Extract raw text using Tesseract
     try:
-        raw_text = pytesseract.image_to_string(
-            image=pil_image, lang="uzb_cyrl+uzb+en",
-            config="-c min_characters_to_try=5"
-        )
-        # raw_text = "dummy text for testing"  # Placeholder for actual OCR result
+        # raw_text = pytesseract.image_to_string(
+        #     image=pil_image, lang="uzb_cyrl+uzb+en",
+        #     config="-c min_characters_to_try=5"
+        # )
+        raw_text = "dummy text for testing"  # Placeholder for actual OCR result
     except pytesseract.TesseractError as e:
         logger.error(f"Tesseract failed to process the image: {e}")
         # Return a result indicating failure at the OCR step
@@ -102,10 +109,6 @@ def process_image_from_path(image_path: str) -> ImageOcrResult:
     """
     logger.info(f"Processing image from path: {image_path}")
 
-    url = " http://iron_ocr:8080/ocr"
-    params = {
-        "lang": "uzbek,uzbek-cyrillic"
-    }
 
 
 
@@ -154,8 +157,15 @@ def process_image_from_bytes(image_bytes: bytes) -> ImageOcrResult:
     """
     logger.info("Processing image from byte stream.")
     try:
+        response = requests.post(url, params=params, files={"file": image_bytes})
+        response.raise_for_status()
+
         with Image.open(io.BytesIO(image_bytes)) as pil_img:
-            return process_image_from_pil(pil_img)
+            res = process_image_from_pil(pil_img)
+
+            parsed = json.loads(response.text)
+            res.text = parsed["text"]
+            return res
     except Exception as e:
         logger.error(f"Failed to process image from bytes: {e}")
         raise
