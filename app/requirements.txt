@@ -8,5 +8,12 @@ pycld2==0.41
 PyMuPDF==1.24.10
 beautifulsoup4==4.12.3
 chardet==5.2.0
-python-dotenv
-opencv-python
+python-dotenv==1.1.1
+opencv-python==4.12.0.88
+
+# Excel processing with encoding support
+openpyxl==3.1.2    # For reading/writing XLSX files with Unicode support
+xlrd==2.0.1        # For reading XLS files (older Excel format) with encoding support
+
+# Optional but recommended for text encoding issues
+ftfy==6.1.1        # Fixes text with mojibake and other encoding problems
