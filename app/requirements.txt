@@ -9,7 +9,7 @@ PyMuPDF==1.24.10
 beautifulsoup4==4.12.3
 chardet==5.2.0
 python-dotenv==1.1.1
-opencv-python==4.12.0.88
+opencv-python<4.10.0
 
 # Excel processing with encoding support
 openpyxl==3.1.2    # For reading/writing XLSX files with Unicode support
