@@ -97,6 +97,10 @@ def _pdf_extract_images(pdf_path: str) -> List[ImageOcrResult]:
         with fitz.open(pdf_path) as pdf_file:
             for page_num in range(len(pdf_file)):
                 image_list = pdf_file.get_page_images(page_num, full=True)
+                print(f"Found {len(image_list)} images on page {page_num + 1}")
+                if len(image_list) == 0:
+                    logger.info(f"No images found on page {page_num + 1}")
+                    continue
                 for img_index, img_info in enumerate(image_list):
                     xref = img_info[0]
                     base_image = pdf_file.extract_image(xref)
@@ -125,6 +129,14 @@ def process_document_with_tika(filepath: str, file_type: str) -> DocOcrResult:
     """
     # 1. Get main text content from Tika
     raw_text = _tika_get_text_content(filepath)
+    if file_type == file_types.TYPE_PDF:
+        import fitz
+        with fitz.open(filepath) as doc:
+            full_text = ""
+            for page in doc:
+                text = page.get_text()  # 'text' gives Unicode string
+                full_text += text + "\n"
+            raw_text = full_text
     formatted_text = utils.text_formatting(raw_text)
 
     # 2. Extract and OCR images based on file type
