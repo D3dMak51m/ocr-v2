@@ -27,6 +27,8 @@ COPY ./app/traineddata/en.traineddata /usr/share/tesseract-ocr/5/tessdata/
 
 RUN mkdir -p /app/temp_files
 
+ENV OMP_THREAD_LIMIT=1
+
 EXPOSE 80
 # --root-path /api/ --forwarded-allow-ips "*"
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8282"]
