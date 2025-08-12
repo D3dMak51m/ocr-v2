@@ -6,17 +6,8 @@ import pytesseract
 import chardet
 
 from core.schemas import ImageOcrResult
-from services.utils import language_detector, text_formatting, enhance_ocr_image_v1
-import uuid, json
-import requests
-import io
-
-
-url = " http://iron_ocr:8080/ocr"
-params = {
-    "lang": "uzbek,uzbek-cyrillic"
-}
-
+from services.utils import language_detector, \
+    text_formatting, enhance_ocr_image_v1
 
 # Initialize logger
 logger = logging.getLogger(__name__)
@@ -73,11 +64,10 @@ def process_image_from_pil(pil_image: Image.Image) -> ImageOcrResult:
 
     # 2. Extract raw text using Tesseract
     try:
-        # raw_text = pytesseract.image_to_string(
-        #     image=pil_image, lang="uzb_cyrl+uzb+en",
-        #     config="-c min_characters_to_try=5"
-        # )
-        raw_text = "dummy text for testing"  # Placeholder for actual OCR result
+        raw_text = pytesseract.image_to_string(
+            image=pil_image, lang="uzb_cyrl+uzb+en",
+            config="-c min_characters_to_try=5"
+        )
     except pytesseract.TesseractError as e:
         logger.error(f"Tesseract failed to process the image: {e}")
         # Return a result indicating failure at the OCR step
@@ -108,40 +98,11 @@ def process_image_from_path(image_path: str) -> ImageOcrResult:
     Opens an image from a file path and processes it.
     """
     logger.info(f"Processing image from path: {image_path}")
-
-
-
-
     try:
         with Image.open(image_path) as pil_img:
             # enhance the image
             enhanced_image = enhance_ocr_image_v1(pil_img, scale_factor=1.9)
-            # # cv2.imwrite(
-            img_buffer = io.BytesIO()
-            format_ = image_path.split('.')[-1].upper()
-            if format_ == "JPG":
-                format_ = "JPEG"
-            enhanced_image.save(img_buffer, format=format_)
-            img_buffer.seek(0)
-
-            files = {"file": img_buffer}
-
-            
-            # call iron ocr 
             resp = process_image_from_pil(enhanced_image)
-            print("confidence: ", resp.encoding_conf)
-            if resp.encoding == "Cyrillic" and resp.encoding_conf > 30:
-                params["lang"] = "uzbek-cyrillic"
-
-            response = requests.post(url, params=params, files=files)
-            # with open(image_path, "rb") as f:
-            #     files = {"file": f}
-            #     response = requests.post(url, params=params, files=files)
-
-            parsed = json.loads(response.text)
-            print(resp.text)
-
-            resp.text = parsed["text"]
             return resp
     except FileNotFoundError:
         logger.error(f"Image file not found at path: {image_path}")
@@ -156,16 +117,11 @@ def process_image_from_bytes(image_bytes: bytes) -> ImageOcrResult:
     Processes an image directly from a byte stream.
     """
     logger.info("Processing image from byte stream.")
+
     try:
-        response = requests.post(url, params=params, files={"file": image_bytes})
-        response.raise_for_status()
-
         with Image.open(io.BytesIO(image_bytes)) as pil_img:
-            res = process_image_from_pil(pil_img)
-
-            parsed = json.loads(response.text)
-            res.text = parsed["text"]
-            return res
+            enhanced_image = enhance_ocr_image_v1(pil_img, scale_factor=1.9)
+            return process_image_from_pil(enhanced_image)
     except Exception as e:
         logger.error(f"Failed to process image from bytes: {e}")
         raise

@@ -4,7 +4,7 @@ x-airflow-common:
   environment: 
     AIRFLOW__CORE__EXECUTOR: LocalExecutor
     AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
-    AIRFLOW__API__AUTH_BACKENDS: airflow.api.auth.backend.basic_auth
+    AIRFLOW__API__AUTH_BACKENDS: airflow.api.auth.backend.basic_auth,airflow.api.auth.backend.session
     AIRFLOW__WEBSERVER__SECRET_KEY: ${AIRFLOW_SECRET_KEY:-your-secret-key-here-change-this}
     AIRFLOW__WEBSERVER__EXPOSE_CONFIG: 'true'
     FAST_API_BASE_URL: ${FAST_API_BASE_URL}
@@ -97,6 +97,7 @@ services:
   airflow-init:
     <<: *airflow-common
     container_name: airflow_init
+    restart: "no"                       # <— one-shot
     depends_on:
       postgres:
         condition: service_healthy
@@ -121,7 +122,8 @@ services:
     <<: *airflow-common
     container_name: airflow_webserver
     depends_on:
-      - airflow-init
+      airflow-init:
+        condition: service_completed_successfully   # <— wait for init to finish
     ports:
       - "8080:8080"
     command: ["airflow", "webserver"]
@@ -136,7 +138,10 @@ services:
     <<: *airflow-common
     container_name: airflow_scheduler
     depends_on:
-      - airflow-webserver
+      airflow-init:
+        condition: service_completed_successfully   # <— also wait for init
+      airflow-webserver:
+        condition: service_started
     command: ["airflow", "scheduler"]
     healthcheck:
       test: ["CMD", "airflow", "version"] 
@@ -145,19 +150,6 @@ services:
       timeout: 10s
       retries: 5
       start_period: 30s
-
-  iron_ocr:
-    build:
-      context: .
-      dockerfile: ironocr.Dockerfile
-    image: ironocr-service:latest
-    environment:
-      IRON_OCR_LICENSE_KEY: "IRONSUITE.S.KOMOLOV.CSEC.UZ.19582-EE8E903EF4-HXQ6U-JMMRTUTTY5VB-GTBQESTF7M6L-VQXOAYX4Z4NE-YI5POKCOXD6K-3CQKPJ6ZUDWM-HWMUU3VCU4PK-45JIAE-TZWE5L46RHSQEA-DEPLOYMENT.TRIAL-6ARJGX.TRIAL.EXPIRES.09.SEP.2025"
-    ports:
-      - "8081:8080"
-    networks:
-      - app-network
-  
 
 networks:
   app-network:
