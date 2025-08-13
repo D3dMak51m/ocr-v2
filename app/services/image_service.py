@@ -128,7 +128,7 @@ def _apply_osd_rotation_if_confident(
     return pil_image, rotate, orient_conf, script, script_conf
 
 
-def _ocr_once(pil_image: Image.Image, lang: str, psm: int, timeout_s: int = 10) -> str:
+def _ocr_once(pil_image: Image.Image, lang: str, psm: int) -> str:
     """
     Single Tesseract pass with tuned defaults for speed/quality.
     """
@@ -140,7 +140,7 @@ def _ocr_once(pil_image: Image.Image, lang: str, psm: int, timeout_s: int = 10) 
     )
     t0 = _t()
     text = pytesseract.image_to_string(
-        image=pil_image, lang=lang, config=config, timeout=timeout_s
+        image=pil_image, lang=lang, config=config, timeout=60
     )
     # text = pytesseract.image_to_string(
     #     image=pil_image, lang="uzb", config=config, timeout=timeout_s
