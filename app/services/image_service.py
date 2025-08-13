@@ -12,7 +12,6 @@ from pytesseract import Output
 
 from core.schemas import ImageOcrResult
 from services.utils import (
-    language_detector,
     text_formatting,
     prepare_image_for_ocr,  # fast pipeline (deskew + enhance + psm)
     enhance_ocr_image_v1,  # keep for debugging if needed
@@ -39,11 +38,6 @@ def _log_ms(start: float, label: str) -> None:
 ORIENT_CONF_MIN = 1.0  # orientation_conf >= 15.0 ⇒ trust rotate
 SCRIPT_CONF_STRONG = 15.0  # script_conf      >= 15.0 ⇒ trust single script
 
-# Default language preferences
-DEFAULT_LATIN_LANG = (
-    "uzb"  # change to "eng" if you expect mostly English when script is Latin
-)
-CYRILLIC_LANG = "uzb_cyrl"
 MIXED_LANGS = "uzb_cyrl+uzb+eng"  # mixed fallback
 
 
@@ -132,33 +126,6 @@ def _apply_osd_rotation_if_confident(
     )
     _log_ms(t0, "osd.apply_rotation.total(skipped)")
     return pil_image, rotate, orient_conf, script, script_conf
-
-
-def _select_langs(script: Optional[str], script_conf: Optional[float]) -> str:
-    """
-    Choose Tesseract 'lang' based on OSD script info.
-    - Strong Latin -> DEFAULT_LATIN_LANG (single)
-    - Strong Cyrillic -> CYRILLIC_LANG (single)
-    - Otherwise -> MIXED_LANGS
-    """
-    t0 = _t()
-    if script is None or script_conf is None:
-        _log_ms(t0, "select_langs(mixed_default)")
-        return MIXED_LANGS
-
-    sc = script_conf or 0.0
-    name = (script or "").lower()
-
-    if sc >= SCRIPT_CONF_STRONG:
-        if "latin" in name:
-            _log_ms(t0, "select_langs(latin)")
-            return DEFAULT_LATIN_LANG
-        if "cyrillic" in name:
-            _log_ms(t0, "select_langs(cyrillic)")
-            return CYRILLIC_LANG
-
-    _log_ms(t0, "select_langs(mixed_lowconf)")
-    return MIXED_LANGS
 
 
 def _ocr_once(pil_image: Image.Image, lang: str, psm: int, timeout_s: int = 10) -> str:
@@ -265,18 +232,9 @@ def process_image_from_pil(pil_image: Image.Image) -> ImageOcrResult:
     final_text = _ensure_utf8(cleaned_text)
     _log_ms(t8, "process.ensure_utf8")
 
-    # 7) Detect language of the extracted text (informational)
-    t9 = _t()
-    lang_info = language_detector(final_text) if final_text else {}
-    language = lang_info.get("language")
-    score = lang_info.get("score")
-    _log_ms(t9, "process.language_detector")
-
     # 8) Assemble the final result object
     result = ImageOcrResult(
         text=final_text,
-        language=language,
-        language_score=float(score) if score is not None else None,
         encoding=script or "N/A",  # reuse field to surface script info
         encoding_conf=float(script_conf) if script_conf is not None else None,
     )

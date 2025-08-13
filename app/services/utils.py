@@ -14,7 +14,6 @@ from bs4 import BeautifulSoup
 
 # Allow importing local detector if needed
 sys.path.insert(0, "..")
-from lang_detector import detector  # noqa: E402
 
 logger = logging.getLogger(__name__)
 
@@ -55,19 +54,6 @@ def get_file_extension(url: str) -> str:
         ext = ext[1:]
     _log_ms(t0, "get_file_extension")
     return ext
-
-
-def language_detector(text_uz: str):
-    """
-    Returns {'language': code, 'score': float} or defaults if none.
-    """
-    t0 = _t()
-    lang_list = detector.detect_lang(text_uz)
-    logger.info("language_list: %s", str(lang_list))
-    _log_ms(t0, "language_detector")
-    if len(lang_list) > 0:
-        return lang_list[0]
-    return {"language": None, "score": 0}
 
 
 def xml_to_txt(xml_table: str) -> str:
