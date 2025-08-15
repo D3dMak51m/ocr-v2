@@ -10,3 +10,5 @@ app/__pycache__/
 
 postgres-data/*
 airflow-logs/*
+test
+test_files

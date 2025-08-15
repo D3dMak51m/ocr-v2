@@ -15,8 +15,8 @@ logger = logging.getLogger(__name__)
 RABBITMQ_CONFIG = {
     "host": os.getenv("RABBITMQ_HOST", "rabbitmq"),
     "port": int(os.getenv("RABBITMQ_PORT", "5672")),
-    "username": os.getenv("RABBITMQ_USER", "admin"),
-    "password": os.getenv("RABBITMQ_PASS", "admin_ocr_123SjC7s"),
+    "username": os.getenv("RABBITMQ_DEFAULT_USER", "admindefault"),
+    "password": os.getenv("RABBITMQ_DEFAULT_PASS", "admin_ocr_123SjC7s"),
     "queue_name": os.getenv("RABBITMQ_QUEUE", "ocr_results"),
     "connection_timeout": int(os.getenv("RABBITMQ_TIMEOUT", "10")),
 }

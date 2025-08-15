@@ -35,8 +35,6 @@ class AirflowTask(BaseModel):
 class ImageOcrResult(BaseModel):
     filename: Optional[str] = None
     text: Optional[str] = None
-    language: Optional[str] = None
-    language_score: Optional[float] = None
     encoding: Optional[str] = None
     encoding_conf: Optional[float] = None
 
@@ -63,5 +61,5 @@ class ErrorDetail(BaseModel):
 class ApiResponse(BaseModel):
     request_id: str
     status: ResponseStatus
-    data: Optional[Union[DocOcrResult, ImageOcrResult, Dict]] = None
+    data: Optional[Union[DocOcrResult, Dict]] = None
     error: Optional[ErrorDetail] = None
