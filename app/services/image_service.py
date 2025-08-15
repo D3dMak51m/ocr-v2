@@ -10,7 +10,7 @@ import pytesseract
 from PIL import Image, ImageOps
 from pytesseract import Output
 
-from core.schemas import ImageOcrResult
+from core.schemas import ImageOcrResult, DocOcrResult
 from services.utils import (
     text_formatting,
     prepare_image_for_ocr,  # fast pipeline (deskew + enhance + psm)
@@ -157,7 +157,7 @@ def _text_strength(t: str) -> int:
     return len(re.findall(r"\w", t))
 
 
-def process_image_from_pil(pil_image: Image.Image) -> ImageOcrResult:
+def process_image_from_pil(pil_image: Image.Image) -> DocOcrResult:
     """
     Performs OCR on a PIL.Image with OSD-based rotation and script-aware language selection,
     plus a fast deskew/enhance pipeline. Includes detailed timing logs.
@@ -208,7 +208,11 @@ def process_image_from_pil(pil_image: Image.Image) -> ImageOcrResult:
     except pytesseract.TesseractError as e:
         _log_ms(t5, "process.ocr_firstpass(error)")
         logger.error(f"Tesseract failed to process the image: {e}")
-        return ImageOcrResult(text=f"OCR failed: {e}")
+        return DocOcrResult(
+            text="",
+            images=[ImageOcrResult(text=f"OCR failed: {e}")],
+            service="tesseract",
+        )
     _log_ms(t5, "process.ocr_firstpass")
 
     # # 5) If result looks too weak and we trusted a single-script, try mixed-langs fallback once
@@ -233,17 +237,22 @@ def process_image_from_pil(pil_image: Image.Image) -> ImageOcrResult:
     _log_ms(t8, "process.ensure_utf8")
 
     # 8) Assemble the final result object
-    result = ImageOcrResult(
+    imgOcrResult = ImageOcrResult(
         text=final_text,
         encoding=script or "N/A",  # reuse field to surface script info
         encoding_conf=float(script_conf) if script_conf is not None else None,
     )
-
+    
+    result = DocOcrResult(
+        text="",
+        images=[imgOcrResult],
+        service="tesseract",
+    )
     _log_ms(t_total, "process.total")
     return result
 
 
-def process_image_from_path(image_path: str) -> ImageOcrResult:
+def process_image_from_path(image_path: str) -> DocOcrResult:
     """
     Opens an image from a file path and processes it.
     """
@@ -263,7 +272,7 @@ def process_image_from_path(image_path: str) -> ImageOcrResult:
         raise
 
 
-def process_image_from_bytes(image_bytes: bytes) -> ImageOcrResult:
+def process_image_from_bytes(image_bytes: bytes) -> DocOcrResult:
     """
     Processes an image directly from a byte stream.
     """

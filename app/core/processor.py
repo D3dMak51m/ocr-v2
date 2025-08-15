@@ -6,7 +6,7 @@ from contextlib import contextmanager
 import requests
 from requests.exceptions import RequestException
 
-from core.schemas import OcrRequest, DocOcrResult, ImageOcrResult
+from core.schemas import OcrRequest, DocOcrResult
 from core.exceptions import FileProcessingError, UnsupportedFileTypeError
 import core.file_types as file_types
 from services import image_service, tika_service, utils
@@ -45,7 +45,7 @@ def temporary_file_from_url(url: str):
             logger.info(f"Cleaned up temporary file: {tmp_path}")
 
 
-def process_file_path(filepath: str) -> Union[DocOcrResult, ImageOcrResult]:
+def process_file_path(filepath: str) -> DocOcrResult:
     """
     Main dispatcher to process a file based on its extension.
     """
@@ -73,7 +73,7 @@ def process_file_path(filepath: str) -> Union[DocOcrResult, ImageOcrResult]:
     )
 
 
-def run_ocr(request: OcrRequest) -> Union[DocOcrResult, ImageOcrResult]:
+def run_ocr(request: OcrRequest) -> DocOcrResult:
     """
     Entry point for running OCR on a request, either from a URL or a local path.
     """

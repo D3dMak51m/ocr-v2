@@ -61,5 +61,5 @@ class ErrorDetail(BaseModel):
 class ApiResponse(BaseModel):
     request_id: str
     status: ResponseStatus
-    data: Optional[Union[DocOcrResult, ImageOcrResult, Dict]] = None
+    data: Optional[Union[DocOcrResult, Dict]] = None
     error: Optional[ErrorDetail] = None
