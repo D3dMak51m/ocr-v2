@@ -157,7 +157,7 @@ def _text_strength(t: str) -> int:
     return len(re.findall(r"\w", t))
 
 
-def process_image_from_pil(pil_image: Image.Image) -> DocOcrResult:
+def process_image_from_pil(pil_image: Image.Image) -> ImageOcrResult: # -> ImageOcrResult:
     """
     Performs OCR on a PIL.Image with OSD-based rotation and script-aware language selection,
     plus a fast deskew/enhance pipeline. Includes detailed timing logs.
@@ -243,13 +243,14 @@ def process_image_from_pil(pil_image: Image.Image) -> DocOcrResult:
         encoding_conf=float(script_conf) if script_conf is not None else None,
     )
     
-    result = DocOcrResult(
-        text="",
-        images=[imgOcrResult],
-        service="tesseract",
-    )
+    # result = DocOcrResult(
+    #     text="",
+    #     images=[imgOcrResult],
+    #     service="tesseract",
+    # )
     _log_ms(t_total, "process.total")
-    return result
+    # return result
+    return imgOcrResult
 
 
 def process_image_from_path(image_path: str) -> DocOcrResult:
@@ -272,7 +273,7 @@ def process_image_from_path(image_path: str) -> DocOcrResult:
         raise
 
 
-def process_image_from_bytes(image_bytes: bytes) -> DocOcrResult:
+def process_image_from_bytes(image_bytes: bytes) -> ImageOcrResult:        # -> ImageOcrResult:
     """
     Processes an image directly from a byte stream.
     """
