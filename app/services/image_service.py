@@ -10,7 +10,7 @@ import pytesseract
 from PIL import Image, ImageOps
 from pytesseract import Output
 
-from core.schemas import ImageOcrResult, DocOcrResult
+from core.schemas import ImageOcrResult
 from services.utils import (
     text_formatting,
     prepare_image_for_ocr,  # fast pipeline (deskew + enhance + psm)
@@ -208,11 +208,10 @@ def process_image_from_pil(pil_image: Image.Image) -> ImageOcrResult: # -> Image
     except pytesseract.TesseractError as e:
         _log_ms(t5, "process.ocr_firstpass(error)")
         logger.error(f"Tesseract failed to process the image: {e}")
-        return DocOcrResult(
-            text="",
-            images=[ImageOcrResult(text=f"OCR failed: {e}")],
-            service="tesseract",
-        )
+        
+        return ImageOcrResult(
+            text=f"OCR failed: {e}"
+        )  # Return early with error message
     _log_ms(t5, "process.ocr_firstpass")
 
     # # 5) If result looks too weak and we trusted a single-script, try mixed-langs fallback once
@@ -242,18 +241,12 @@ def process_image_from_pil(pil_image: Image.Image) -> ImageOcrResult: # -> Image
         encoding=script or "N/A",  # reuse field to surface script info
         encoding_conf=float(script_conf) if script_conf is not None else None,
     )
-    
-    # result = DocOcrResult(
-    #     text="",
-    #     images=[imgOcrResult],
-    #     service="tesseract",
-    # )
     _log_ms(t_total, "process.total")
     # return result
     return imgOcrResult
 
 
-def process_image_from_path(image_path: str) -> DocOcrResult:
+def process_image_from_path(image_path: str) -> ImageOcrResult:
     """
     Opens an image from a file path and processes it.
     """

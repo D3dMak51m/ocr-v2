@@ -62,8 +62,13 @@ def process_file_path(filepath: str) -> DocOcrResult:
         )
 
     if file_type == file_types.TYPE_IMG:
-        return image_service.process_image_from_path(filepath)
-
+        image_ocr_result = image_service.process_image_from_path(filepath)
+        # we need to return a DocOcrResult
+        return DocOcrResult(
+            text="",
+            images=[image_ocr_result],
+            service="tesseract",
+        )
     if file_type in file_types.TIKA_FILE_TYPES:
         return tika_service.process_document_with_tika(filepath, file_type)
 
