@@ -26,6 +26,7 @@ dag = DAG(
     catchup=False,
     is_paused_upon_creation=False,
     tags=["ocr", "inference", "standard"],
+    max_active_runs=4
 )
 
 # Task: Call FastAPI inference endpoint
