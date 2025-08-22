@@ -26,6 +26,7 @@ dag = DAG(
     catchup=False,
     is_paused_upon_creation=False,
     tags=["ocr", "inference", "large"],
+    max_active_runs=2
 )
 
 # Task: Call FastAPI inference endpoint for large files

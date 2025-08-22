@@ -52,8 +52,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '2'
-          memory: '8G'
+          cpus: '24'
+          memory: '24G'
     networks:
       - app-network
  
@@ -68,7 +68,7 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '2'
+          cpus: '4'
           memory: '8G'
     networks:
       - app-network
