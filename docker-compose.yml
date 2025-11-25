@@ -32,6 +32,7 @@ services:
       - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASS}
     networks:
       - app-network
+    restart: unless-stopped
 
   backend:
     platform: linux/amd64
