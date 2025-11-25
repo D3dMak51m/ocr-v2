@@ -1,5 +1,5 @@
 # Base image with OpenJDK 17
-FROM openjdk:17-jdk-slim
+FROM openjdk:17.0.2-jdk-slim
 
 # Install required packages and fonts for better Unicode support
 RUN apt-get update && \
