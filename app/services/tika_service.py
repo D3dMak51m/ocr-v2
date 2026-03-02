@@ -4,7 +4,7 @@ import logging
 import tempfile
 import zipfile
 from pathlib import Path
-from typing import List
+from typing import List, Tuple
 from zipfile import ZipFile
 import chardet  # For encoding detection
 
@@ -18,6 +18,7 @@ from core import file_types
 from core.exceptions import ExternalServiceError
 from core.schemas import DocOcrResult, ImageOcrResult
 from services import image_service, utils
+from services.stamp_detector import stamp_detector
 
 # Initialize logger
 logger = logging.getLogger(__name__)
@@ -135,38 +136,42 @@ def _tika_extract_embedded_files(filepath: str) -> List[ImageOcrResult]:
     return ocr_results
 
 
-def _pdf_extract_images(pdf_path: str) -> List[ImageOcrResult]:
-    """Extracts images from each page of a PDF and runs OCR on them."""
+def _pdf_extract_images(pdf_path: str) -> Tuple[List[ImageOcrResult], bool]:
+    """Extracts images, checks for critical stamps (Early Stopping), and runs OCR."""
     ocr_results = []
-    logger.info(f"Extracting images directly from PDF: {pdf_path}")
+    early_stop_triggered = False
+    CRITICAL_STAMPS = ["secret", "top_secret", "dsp"]  # Замените на ваши классы из YOLO
+
+    logger.info(f"Extracting images from PDF: {pdf_path}")
     try:
         with fitz.open(pdf_path) as pdf_file:
             for page_num in range(len(pdf_file)):
-                image_list = pdf_file.get_page_images(page_num, full=True)
-                print(f"Found {len(image_list)} images on page {page_num + 1}")
-                if len(image_list) == 0:
-                    logger.info(f"No images found on page {page_num + 1}")
-                    continue
-                for img_index, img_info in enumerate(image_list):
-                    xref = img_info[0]
-                    base_image = pdf_file.extract_image(xref)
-                    image_bytes = base_image["image"]
-                    image_ext = base_image["ext"]
-                    
-                    try:
-                        # More efficient: process image directly from bytes
-                        result = image_service.\
-                            process_image_from_bytes(image_bytes)
-                        result.filename = f"page_{page_num + 1}_img_\
-                            {img_index + 1}.{image_ext}"
-                        ocr_results.append(result)
-                    except Exception as e:
-                        logger.warning(f"Could not process image on page \
-                                       {page_num+1}: {e}")
+                page = pdf_file[page_num]
+                pix = page.get_pixmap(matrix=fitz.Matrix(2, 2))
+                img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
+
+                # Early check for security classification
+                stamps = stamp_detector.detect(img)
+                for stamp in stamps:
+                    if stamp.label in CRITICAL_STAMPS and stamp.confidence > 0.80:
+                        logger.warning(f"CRITICAL STAMP FOUND '{stamp.label}' on page {page_num + 1}. EARLY STOPPING.")
+                        early_stop_triggered = True
+                        break
+
+                try:
+                    result = image_service.process_image_from_pil(img)
+                    result.filename = f"page_{page_num + 1}.png"
+                    ocr_results.append(result)
+                except Exception as e:
+                    logger.warning(f"Could not process page {page_num + 1}: {e}")
+
+                if early_stop_triggered:
+                    break
+
     except Exception as e:
-        logger.error(f"Failed to process PDF file for image extraction: {e}")
-        # Don't raise, as we might still have text from Tika
-    return ocr_results
+        logger.error(f"Failed to process PDF: {e}")
+
+    return ocr_results, early_stop_triggered
 
 
 def _is_excel_file(filepath: str) -> bool:
@@ -382,7 +387,8 @@ def process_document_with_tika(filepath: str, file_type: str) -> DocOcrResult:
     """
     # 1. Get main text content from Tika
     raw_text = _tika_get_text_content(filepath)
-    
+    early_stop = False
+
     # Special handling for different file types
     if file_type == file_types.TYPE_PDF:
         import fitz
@@ -409,19 +415,19 @@ def process_document_with_tika(filepath: str, file_type: str) -> DocOcrResult:
     # 2. Extract and OCR images based on file type
     image_results = []
     if file_type == file_types.TYPE_PDF:
-        image_results = _pdf_extract_images(filepath)
+        image_results, early_stop = _pdf_extract_images(filepath)
     elif _is_excel_file(filepath):
-        # Use specialized Excel image extraction
         image_results = _extract_images_from_excel(filepath)
-        
-        # If no images found with direct extraction, try Tika as fallback
         if not image_results:
-            logger.info("No images found with direct extraction, trying Tika...")
             image_results = _tika_extract_embedded_files(filepath)
     else:
-        # For DOCX, PPTX, etc., use Tika's unpack feature
         image_results = _tika_extract_embedded_files(filepath)
 
-    return DocOcrResult(text=formatted_text,
-                        images=image_results,
-                        service="tika")
+    formatted_text = utils.text_formatting(raw_text)
+
+    return DocOcrResult(
+        text=formatted_text,
+        images=image_results,
+        service="tika_paddle",
+        early_stop_triggered=early_stop
+    )

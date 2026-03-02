@@ -8,7 +8,6 @@ from urllib.parse import urlparse
 
 import cv2
 import numpy as np
-import pytesseract
 from PIL import Image, ImageOps
 from bs4 import BeautifulSoup
 

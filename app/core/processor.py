@@ -63,12 +63,16 @@ def process_file_path(filepath: str) -> DocOcrResult:
 
     if file_type == file_types.TYPE_IMG:
         image_ocr_result = image_service.process_image_from_path(filepath)
-        # we need to return a DocOcrResult
+        # Проверяем на Early Stopping для одиночной картинки
+        early_stop = any(s.label in ["secret", "top_secret", "dsp"] for s in image_ocr_result.stamps)
+
         return DocOcrResult(
             text="",
             images=[image_ocr_result],
-            service="tesseract",
+            service="paddle",
+            early_stop_triggered=early_stop
         )
+
     if file_type in file_types.TIKA_FILE_TYPES:
         return tika_service.process_document_with_tika(filepath, file_type)
 

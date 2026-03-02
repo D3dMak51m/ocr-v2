@@ -1,5 +1,5 @@
 import os
-from pydantic import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -13,10 +13,10 @@ class Settings(BaseSettings):
     TIKA_SERVER_URL: str = "http://tika-server:9998"
     LOG_LEVEL: str = "INFO"
 
-    class Config:
-        env_file = ".env"  # Allows loading from a .env file
+    model_config = SettingsConfigDict(
+        env_file = ".env",  # Allows loading from a .env file
         env_file_encoding = "utf-8"
-
+    )
 
 # Create a single instance to be used across the application
 settings = Settings()

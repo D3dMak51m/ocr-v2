@@ -3,6 +3,7 @@ import json
 import os
 import time
 from dotenv import load_dotenv
+import pika.exceptions
 
 load_dotenv()
 

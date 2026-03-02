@@ -1,18 +1,14 @@
-from pydantic import BaseModel, Field
-from typing import List, Optional, Union, Dict
+from pydantic import BaseModel, Field, ConfigDict
+from typing import List, Optional, Union, Dict, Any
 from enum import Enum
-
-# --- Request Models ---
-
 
 class OcrRequest(BaseModel):
     url: Optional[str] = None
     local_path: Optional[str] = None
     request_id: str
     file_size_mb: float
-
-    class Config:
-        schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "url": "https://www.orimi.com/pdf-test.pdf",
                 "local_path": "",
@@ -20,7 +16,7 @@ class OcrRequest(BaseModel):
                 "file_size_mb": 1.5,
             }
         }
-
+    )
 
 class AirflowTask(BaseModel):
     url: Optional[str] = None
@@ -28,38 +24,39 @@ class AirflowTask(BaseModel):
     request_id: str
     file_size_mb: float
 
+class BoundingBox(BaseModel):
+    x1: int
+    y1: int
+    x2: int
+    y2: int
 
-# --- OCR Result Data Models ---
-
+class DetectedStamp(BaseModel):
+    label: str
+    confidence: float
+    box: BoundingBox
 
 class ImageOcrResult(BaseModel):
     filename: Optional[str] = None
     text: Optional[str] = None
-    encoding: Optional[str] = None
-    encoding_conf: Optional[float] = None
-
+    stamps: List[DetectedStamp] = Field(default_factory=list)
+    tables_html: List[str] = Field(default_factory=list)
 
 class DocOcrResult(BaseModel):
     text: Optional[str] = None
     images: List[ImageOcrResult] = Field(default_factory=list)
     service: Optional[str] = None
-
-
-# --- Standard API Response Structure ---
-
+    early_stop_triggered: bool = False
 
 class ResponseStatus(str, Enum):
     SUCCESS = "success"
     ERROR = "error"
 
-
 class ErrorDetail(BaseModel):
     code: str
     message: str
 
-
 class ApiResponse(BaseModel):
     request_id: str
     status: ResponseStatus
-    data: Optional[Union[DocOcrResult, Dict]] = None
+    data: Optional[Union[DocOcrResult, Dict[str, Any]]] = None
     error: Optional[ErrorDetail] = None

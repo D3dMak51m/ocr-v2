@@ -39,7 +39,7 @@ async def validation_exception_handler(request: Request,
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
         content=ApiResponse(
             request_id="N/A", status=ResponseStatus.ERROR, error=error_detail
-        ).dict(),
+        ).model_dump(),
     )
 
 
@@ -55,12 +55,12 @@ async def http_exception_handler(request: Request, exc: HTTPException):
     except (TypeError, AttributeError):
         # Fallback for standard HTTPException details
         error_detail = ErrorDetail(code="HTTP_ERROR", message=str(exc.detail))
-    
+
     return JSONResponse(
         status_code=exc.status_code,
         content=ApiResponse(
             request_id="N/A", status=ResponseStatus.ERROR, error=error_detail
-        ).dict(exclude_none=True),
+        ).model_dump(exclude_none=True),
     )
 
 # --- Routers ---

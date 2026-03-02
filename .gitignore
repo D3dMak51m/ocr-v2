@@ -1,14 +1,35 @@
-env
-**/__pycache__/
-.env
+# Python caches and bytecode
 __pycache__/
-**/**/__pycache__/
-__pycache__/
-**/__pycache__/
-**/**/__pycache__/
-app/__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
 
-postgres-data/*
-airflow-logs/*
-test
-test_files
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+app/.venv/
+
+# Environment files
+.env
+.env.*
+
+# IDE/editor settings
+.idea/
+.vscode/
+*.iml
+
+# Logs and runtime artifacts
+*.log
+airflow-logs/
+
+# Local data volumes
+postgres-data/
+
+# Local test artifacts
+test/
+test_files/
+
+# Local scratch files
+pip

@@ -1,0 +1,46 @@
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+build/
+dist/
+downloads/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Переменные окружения (важно для безопасности!)
+.env
+.env.*
+*.env
+
+# Локальные данные и тома (Volumes)
+postgres-data/
+airflow-logs/
+app/temp_files/
+
+# Тестовые и демонстрационные файлы (не нужны в production образе)
+app/sample_files/
+app/test_files/
+doc/
+
+# Логи
+*.log
+logs/
+
+# Системные файлы и кэш IDE
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+*.swp

@@ -62,7 +62,7 @@ def text_extraction(request: OcrRequest) -> ApiResponse:
         )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=ErrorDetail(code=e.code, message=str(e)).dict(),
+            detail=ErrorDetail(code=e.code, message=str(e)).model_dump(),
         )
     except Exception as e:
         # Catch any unexpected errors
@@ -72,7 +72,7 @@ def text_extraction(request: OcrRequest) -> ApiResponse:
         )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=ErrorDetail(code="INTERNAL_SERVER_ERROR", message=str(e)).dict(),
+            detail=ErrorDetail(code="INTERNAL_SERVER_ERROR", message=str(e)).model_dump(),
         )
 
 
@@ -92,7 +92,7 @@ def create_airflow_task(request: AirflowTask) -> ApiResponse:
     try:
         response = requests.post(
             airflow_url,
-            json={"conf": request.dict()},
+            json={"conf": request.model_dump()},
             auth=HTTPBasicAuth(settings.AIRFLOW_USER, settings.AIRFLOW_PASSWORD),
             timeout=30,
         )
