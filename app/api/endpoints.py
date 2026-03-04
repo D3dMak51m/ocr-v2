@@ -35,7 +35,7 @@ def verify_token(http_auth: HTTPAuthorizationCredentials = Depends(token_auth_sc
     summary="Extract text from a document or image",
     dependencies=[Depends(verify_token)],
 )
-def text_extraction(request: OcrRequest) -> ApiResponse:
+async def text_extraction(request: OcrRequest) -> ApiResponse:
     """
     Performs OCR on a file specified by URL or local path.
 
@@ -50,7 +50,7 @@ def text_extraction(request: OcrRequest) -> ApiResponse:
         )
 
     try:
-        result = run_ocr(request)
+        result = await run_ocr(request)
         return ApiResponse(
             request_id=request.request_id, status=ResponseStatus.SUCCESS, data=result
         )
