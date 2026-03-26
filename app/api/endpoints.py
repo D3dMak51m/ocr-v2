@@ -1,8 +1,8 @@
 import logging
-import requests
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import JSONResponse
+import httpx
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from requests.auth import HTTPBasicAuth
 
 from config import settings
 from core.schemas import (
@@ -13,7 +13,7 @@ from core.schemas import (
     ErrorDetail,
 )
 from core.processor import run_ocr
-from core.exceptions import OcrBaseException
+from core.exceptions import FileTooLargeError, OcrBaseException
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -26,6 +26,58 @@ def verify_token(http_auth: HTTPAuthorizationCredentials = Depends(token_auth_sc
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or missing token",
+        )
+
+
+def _build_file_too_large_http_exception(exc: FileTooLargeError) -> HTTPException:
+    return HTTPException(
+        status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+        detail=ErrorDetail(code=exc.code, message=str(exc)).model_dump(),
+    )
+
+
+async def _execute_ocr_request(
+    request: OcrRequest,
+    *,
+    enforce_public_size_limit: bool,
+) -> ApiResponse:
+    max_file_size_mb = settings.MAX_SYNC_FILE_SIZE_MB if enforce_public_size_limit else None
+
+    if enforce_public_size_limit and request.file_size_mb > settings.MAX_SYNC_FILE_SIZE_MB:
+        raise _build_file_too_large_http_exception(
+            FileTooLargeError(
+                f"File size exceeds {settings.MAX_SYNC_FILE_SIZE_MB} MB. "
+                "Please use the /queue_inference endpoint for large files."
+            )
+        )
+
+    try:
+        result = await run_ocr(request, max_file_size_mb=max_file_size_mb)
+        return ApiResponse(
+            request_id=request.request_id, status=ResponseStatus.SUCCESS, data=result
+        )
+    except FileTooLargeError as e:
+        logger.error(
+            "OCR request %s exceeded size limit: %s",
+            request.request_id,
+            e,
+        )
+        raise _build_file_too_large_http_exception(e)
+    except OcrBaseException as e:
+        logger.error(
+            f"OCR processing failed for request {request.request_id}: {e}"
+        )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=ErrorDetail(code=e.code, message=str(e)).model_dump(),
+        )
+    except Exception as e:
+        logger.exception(
+            f"An unexpected error occurred for request {request.request_id}: {e}"
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=ErrorDetail(code="INTERNAL_SERVER_ERROR", message=str(e)).model_dump(),
         )
 
 
@@ -42,38 +94,21 @@ async def text_extraction(request: OcrRequest) -> ApiResponse:
     - **Supported extensions:** jpg, png, pdf, doc, docx, ppt, pptx, etc.
     - Files larger than 50MB should use the `/queue_inference` endpoint.
     """
-    if request.file_size_mb > 50:
-        raise HTTPException(
-            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-            detail="File size exceeds 50MB. Please use the /queue_inference \
-                endpoint for large files.",
-        )
+    return await _execute_ocr_request(request, enforce_public_size_limit=True)
 
-    try:
-        result = await run_ocr(request)
-        return ApiResponse(
-            request_id=request.request_id, status=ResponseStatus.SUCCESS, data=result
-        )
-    except OcrBaseException as e:
-        # Catch custom exceptions and format them nicely
-        logger.error(
-            f"OCR processing failed for request \
-                     {request.request_id}: {e}"
-        )
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=ErrorDetail(code=e.code, message=str(e)).model_dump(),
-        )
-    except Exception as e:
-        # Catch any unexpected errors
-        logger.exception(
-            f"An unexpected error occurred for request \
-                {request.request_id}: {e}"
-        )
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=ErrorDetail(code="INTERNAL_SERVER_ERROR", message=str(e)).model_dump(),
-        )
+
+@router.post(
+    "/internal/inference",
+    response_model=ApiResponse,
+    include_in_schema=False,
+    dependencies=[Depends(verify_token)],
+)
+async def internal_text_extraction(request: OcrRequest) -> ApiResponse:
+    """
+    Internal OCR endpoint for orchestrators that are allowed to process files
+    beyond the public synchronous size cap.
+    """
+    return await _execute_ocr_request(request, enforce_public_size_limit=False)
 
 
 @router.post(
@@ -82,7 +117,7 @@ async def text_extraction(request: OcrRequest) -> ApiResponse:
     summary="Queue a large file for processing via Airflow",
     dependencies=[Depends(verify_token)],
 )
-def create_airflow_task(request: AirflowTask) -> ApiResponse:
+async def create_airflow_task(request: AirflowTask) -> ApiResponse:
     """
     Triggers an Airflow DAG to process a large file asynchronously.
     """
@@ -90,35 +125,56 @@ def create_airflow_task(request: AirflowTask) -> ApiResponse:
     airflow_url = f"{settings.AIRFLOW_BASE_URL}/api/v1/dags/{dag_id}/dagRuns"
 
     try:
-        response = requests.post(
-            airflow_url,
-            json={"conf": request.model_dump()},
-            auth=HTTPBasicAuth(settings.AIRFLOW_USER, settings.AIRFLOW_PASSWORD),
-            timeout=30,
-        )
-        response.raise_for_status()  # Raises HTTPError for bad responses (4xx or 5xx)
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.post(
+                airflow_url,
+                json={"conf": request.model_dump()},
+                auth=(settings.AIRFLOW_USER, settings.AIRFLOW_PASSWORD),
+            )
+            response.raise_for_status()
+
+        try:
+            airflow_payload = response.json()
+        except ValueError:
+            airflow_payload = response.text or None
 
         logger.info(
-            f"Successfully triggered Airflow DAG \
-                '{dag_id}' for request {request.request_id}"
+            f"Successfully triggered Airflow DAG '{dag_id}' for request {request.request_id}"
         )
         return ApiResponse(
             request_id=request.request_id,
             status=ResponseStatus.SUCCESS,
-            data={"status": "received", "airflow_response": response.json()},
+            data={"status": "received", "airflow_response": airflow_payload},
         )
-    except requests.RequestException as e:
+    except httpx.HTTPStatusError as e:
         logger.error(
-            f"Failed to trigger Airflow DAG for request \
-                {request.request_id}. Error: {e}"
+            f"Airflow returned HTTP {e.response.status_code} for request {request.request_id}"
+        )
+        error_detail = ErrorDetail(
+            code="AIRFLOW_TRIGGER_FAILED",
+            message=f"Airflow returned HTTP {e.response.status_code}",
+        )
+        return JSONResponse(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            content=ApiResponse(
+                request_id=request.request_id,
+                status=ResponseStatus.ERROR,
+                error=error_detail,
+            ).model_dump(exclude_none=True),
+        )
+    except httpx.RequestError as e:
+        logger.error(
+            f"Failed to connect to Airflow for request {request.request_id}: {e}"
         )
         error_detail = ErrorDetail(
             code="AIRFLOW_TRIGGER_FAILED",
             message=f"Failed to communicate with Airflow: {e}",
         )
-        # Return 502 if the gateway (Airflow) is down or failing
-        return ApiResponse(
-            request_id=request.request_id,
-            status=ResponseStatus.ERROR,
-            error=error_detail,
+        return JSONResponse(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            content=ApiResponse(
+                request_id=request.request_id,
+                status=ResponseStatus.ERROR,
+                error=error_detail,
+            ).model_dump(exclude_none=True),
         )

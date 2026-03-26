@@ -8,6 +8,9 @@ x-airflow-common:
     AIRFLOW__WEBSERVER__SECRET_KEY: ${AIRFLOW_SECRET_KEY:-your-secret-key-here-change-this}
     AIRFLOW__WEBSERVER__EXPOSE_CONFIG: 'true'
     FAST_API_BASE_URL: ${FAST_API_BASE_URL}
+    API_TOKEN: ${API_TOKEN}
+    AIRFLOW_USER: ${AIRFLOW_USER}
+    AIRFLOW_PASSWORD: ${AIRFLOW_PASSWORD}
     RABBITMQ_HOST: rabbitmq
     RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
     RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS}
@@ -36,18 +39,33 @@ services:
 
   backend:
     platform: linux/amd64
+    runtime: nvidia
     build:
       context: .
       dockerfile: backend.Dockerfile
     ports:
       - "8282:8282"
     shm_size: 4gb
+    devices:
+      - /dev/nvidia0:/dev/nvidia0
+      - /dev/nvidiactl:/dev/nvidiactl
+      - /dev/nvidia-uvm:/dev/nvidia-uvm
+      - /dev/nvidia-uvm-tools:/dev/nvidia-uvm-tools
+      - /dev/nvidia-modeset:/dev/nvidia-modeset
     depends_on:
       - rabbitmq
     restart: unless-stopped
     environment:
       - API_TOKEN=${API_TOKEN}
       - AIRFLOW_BASE_URL=${AIRFLOW_BASE_URL}
+      - AIRFLOW_USER=${AIRFLOW_USER}
+      - AIRFLOW_PASSWORD=${AIRFLOW_PASSWORD}
+      - TIKA_SERVER_URL=${TIKA_SERVER_URL}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+      - CUDA_VISIBLE_DEVICES=0
+      - LD_LIBRARY_PATH=/usr/local/cuda/lib64:/usr/local/cuda/targets/x86_64-linux/lib
     volumes:
       - ./app:/app
       - ${DATA_PATH:-/var/lib/datagaze/.data/data}:/data

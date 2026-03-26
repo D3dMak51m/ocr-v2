@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     AIRFLOW_PASSWORD: str = "admin"
     TIKA_SERVER_URL: str = "http://tika-server:9998"
     LOG_LEVEL: str = "INFO"
+    MAX_SYNC_FILE_SIZE_MB: int = 50
 
     model_config = SettingsConfigDict(
         env_file = ".env",  # Allows loading from a .env file

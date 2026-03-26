@@ -3,6 +3,13 @@ __pycache__/
 *.py[cod]
 *.pyo
 *.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+.cache/
 
 # Virtual environments
 .venv/
@@ -26,6 +33,9 @@ airflow-logs/
 
 # Local data volumes
 postgres-data/
+
+# OCR training checkpoints
+app/finetuned/checkpoints/
 
 # Local test artifacts
 test/

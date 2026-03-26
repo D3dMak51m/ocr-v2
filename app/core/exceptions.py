@@ -14,6 +14,13 @@ class FileProcessingError(OcrBaseException):
         super().__init__(message, code)
 
 
+class FileTooLargeError(FileProcessingError):
+    """Error for files that exceed the allowed size limit."""
+
+    def __init__(self, message: str, code: str = "FILE_TOO_LARGE"):
+        super().__init__(message, code)
+
+
 class UnsupportedFileTypeError(OcrBaseException):
     """Error for unsupported file types."""
 

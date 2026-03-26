@@ -1,5 +1,3 @@
-from typing import Optional
-
 TYPE_IMG = "image"
 TYPE_PDF = "pdf"
 TYPE_DOC = "doc"
@@ -22,11 +20,9 @@ TIKA_FILE_TYPES = {TYPE_DOC, TYPE_PDF, TYPE_PPT,
                    TYPE_EXCEL, TYPE_RTF, TYPE_TIKA}
 
 
-def get_file_type(extension: str) -> Optional[str]:
+def get_file_type(extension: str) -> str:
     """
     Determines the file type from its extension.
-    Returns the file type string or None if not directly supported.
+    Defaults to TYPE_TIKA for unknown or unlisted extensions.
     """
-    return EXTENSION_TO_TYPE.get(
-        extension.lower(), TYPE_TIKA
-    )  # Default to Tika for unknown types
+    return EXTENSION_TO_TYPE.get(extension.lower(), TYPE_TIKA)

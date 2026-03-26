@@ -34,6 +34,7 @@ class DetectedStamp(BaseModel):
     label: str
     confidence: float
     box: BoundingBox
+    text: str = ""
 
 class ImageOcrResult(BaseModel):
     filename: Optional[str] = None
@@ -45,7 +46,7 @@ class DocOcrResult(BaseModel):
     text: Optional[str] = None
     images: List[ImageOcrResult] = Field(default_factory=list)
     service: Optional[str] = None
-    early_stop_triggered: bool = False
+
 
 class ResponseStatus(str, Enum):
     SUCCESS = "success"
