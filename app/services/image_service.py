@@ -404,6 +404,64 @@ def _extract_full_stamp_text(stamp_bgr, ocr_engine):
     return " | ".join(parts) if parts else ""
 
 
+def _split_line_into_words(crop_bgr):
+    """
+    Splits a text line crop into word crops using vertical projection gaps.
+    Detects inter-word whitespace and returns a list of individual word images.
+    """
+    gray = cv2.cvtColor(crop_bgr, cv2.COLOR_BGR2GRAY)
+    _, binary = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+
+    h, w = binary.shape
+    projection = np.sum(binary > 0, axis=0)  # ink pixel count per column
+
+    # Find contiguous ink regions
+    regions = []
+    in_region = False
+    start = 0
+    for x in range(w):
+        if projection[x] > 0 and not in_region:
+            start = x
+            in_region = True
+        elif projection[x] == 0 and in_region:
+            regions.append((start, x))
+            in_region = False
+    if in_region:
+        regions.append((start, w))
+
+    if len(regions) <= 1:
+        return [crop_bgr]
+
+    # Inter-word gap threshold: ~25% of text height
+    min_gap = max(int(h * 0.25), 4)
+
+    # Group adjacent ink regions separated by small gaps into words
+    word_bounds = []
+    ws, we = regions[0]
+    for i in range(1, len(regions)):
+        gap = regions[i][0] - we
+        if gap >= min_gap:
+            word_bounds.append((ws, we))
+            ws = regions[i][0]
+        we = regions[i][1]
+    word_bounds.append((ws, we))
+
+    if len(word_bounds) <= 1:
+        return [crop_bgr]
+
+    # Extract word crops with small padding
+    pad = 2
+    words = []
+    for (x1, x2) in word_bounds:
+        x1p = max(0, x1 - pad)
+        x2p = min(w, x2 + pad)
+        word_crop = crop_bgr[:, x1p:x2p]
+        if word_crop.size > 0:
+            words.append(word_crop)
+
+    return words if words else [crop_bgr]
+
+
 def _count_orientation(boxes):
     """Подсчитывает горизонтальные и вертикальные текстовые блоки."""
     horiz = 0
@@ -549,7 +607,10 @@ def process_image_from_pil(pil_image: Image.Image) -> ImageOcrResult:
                 crop = cv_img[y1:y2, x1:x2]
                 if crop.size == 0:
                     continue
-                text = uz_rec.predict(crop)
+                # Split line into words by visual gaps, recognize each
+                word_crops = _split_line_into_words(crop)
+                words = [uz_rec.predict(w) for w in word_crops]
+                text = " ".join(w for w in words if w.strip())
                 if not text.strip():
                     continue
 
