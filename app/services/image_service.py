@@ -567,9 +567,11 @@ def process_image_from_pil(pil_image: Image.Image) -> ImageOcrResult:
                         break
 
                 if not assigned_to_table:
-                    free_text_lines.append(text)
+                    free_text_lines.append((center_y, center_x, text))
 
-            full_text = " ".join(free_text_lines)
+            # Sort by Y (top-to-bottom), then X (left-to-right)
+            free_text_lines.sort(key=lambda t: (t[0], t[1]))
+            full_text = " ".join(t[2] for t in free_text_lines)
 
             # 5. Строим HTML-таблицы из собранных OCR-строк
             for idx in range(len(table_bboxes)):

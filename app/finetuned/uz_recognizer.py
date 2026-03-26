@@ -18,15 +18,14 @@ class UzbekRecognizer:
     def preprocess(self, img):
         h, w = img.shape[:2]
         target_h = 48
-        target_w = min(int(w * target_h / h), 3200)
+        target_w = int(w * target_h / h)
         target_w = max(target_w, 1)
         img = cv2.resize(img, (target_w, target_h))
-        # padding до 320 если меньше
+        # Pad short images to minimum width of 320
         if target_w < 320:
             pad = np.zeros((target_h, 320 - target_w, 3), dtype=np.float32)
             img = np.concatenate([img, pad], axis=1)
-        elif target_w > 320:
-            img = cv2.resize(img, (320, target_h))
+        # If wider than 320, keep the actual width — model supports dynamic input
         img = img.astype('float32') / 255.0
         img -= 0.5
         img /= 0.5
